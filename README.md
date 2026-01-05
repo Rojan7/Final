@@ -1,14 +1,6 @@
-Perfect — this is already a **strong project**, we’ll now turn the README into a **portfolio-grade README** that:
 
-* Instantly shows **what problem you solved**
-* Highlights **engineering decisions**
-* Sounds **confident & professional**
-* Appeals to **recruiters + senior devs**
 
-Below is an **optimized README**.
-You can replace your existing one with this.
 
----
 
 ```markdown
 # 🔍 Multimodal Wikipedia Search Engine  
