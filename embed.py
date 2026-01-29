@@ -4,39 +4,77 @@ import numpy as np
 import faiss
 import torch
 from PIL import Image
-from transformers import CLIPProcessor, CLIPModel
+from transformers import CLIPProcessor, CLIPModel, logging
 
+# -------------------- Silence HF noise --------------------
+logging.set_verbosity_error()
 
+# -------------------- Paths --------------------
 DATA_DIR = "wikipedia_scrape"
 TEXT_META_DIR = os.path.join(DATA_DIR, "meta")
 IMAGE_DIR = os.path.join(DATA_DIR, "images")
 INDEX_DIR = "indices1"
 os.makedirs(INDEX_DIR, exist_ok=True)
 
+# -------------------- Device --------------------
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+# -------------------- Load CLIP --------------------
+clip_model = CLIPModel.from_pretrained(
+    "openai/clip-vit-base-patch32"
+).to(device)
+clip_model.eval()
 
-clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
-clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+clip_processor = CLIPProcessor.from_pretrained(
+    "openai/clip-vit-base-patch32"
+)
 
-def normalize(vec):
-    norm = np.linalg.norm(vec)
-    return vec if norm == 0 else vec / norm
+# -------------------- Utils --------------------
+def normalize(vec: np.ndarray) -> np.ndarray:
+    n = np.linalg.norm(vec)
+    return vec if n == 0 else vec / n
 
-def embed_text_clip(text):
-    inputs = clip_processor(text=[text], return_tensors="pt", padding=True, truncation=True).to(device)
+def extract_tensor(output):
+    """
+    Handles ALL HF CLIP return types safely.
+    """
+    if hasattr(output, "pooler_output"):
+        return output.pooler_output
+    if torch.is_tensor(output):
+        return output
+    raise RuntimeError(f"Unknown CLIP output type: {type(output)}")
+
+def embed_text_clip(text: str) -> np.ndarray:
+    inputs = clip_processor(
+        text=[text],
+        return_tensors="pt",
+        padding=True,
+        truncation=True
+    ).to(device)
+
     with torch.no_grad():
-        emb = clip_model.get_text_features(**inputs)
-    return normalize(emb[0].cpu().numpy()).astype("float32")
+        out = clip_model.get_text_features(**inputs)
 
-def embed_image_clip(image_path):
+    tensor = extract_tensor(out)          # (1, 512)
+    vec = tensor[0].detach().cpu().numpy().astype("float32")
+    return normalize(vec)
+
+def embed_image_clip(image_path: str) -> np.ndarray:
     image = Image.open(image_path).convert("RGB")
-    inputs = clip_processor(images=image, return_tensors="pt").to(device)
-    with torch.no_grad():
-        emb = clip_model.get_image_features(**inputs)
-    return normalize(emb[0].cpu().numpy()).astype("float32")
 
-# array mai rakhne ellai , paxi sajilo hunxa
+    inputs = clip_processor(
+        images=image,
+        return_tensors="pt"
+    ).to(device)
+
+    with torch.no_grad():
+        out = clip_model.get_image_features(**inputs)
+
+    tensor = extract_tensor(out)           # (1, 512)
+    vec = tensor[0].detach().cpu().numpy().astype("float32")
+    return normalize(vec)
+
+# -------------------- Embed --------------------
 text_embeddings = []
 text_metadata = []
 
@@ -62,50 +100,57 @@ for meta_file in meta_files:
             text = block.get("content", "").strip()
             if not text:
                 continue
-            emb = embed_text_clip(text)
-            text_embeddings.append(emb)
-            text_metadata.append({
-                "page_id": page_id,
-                "title": title,
-                "url": url,
-                "type": "text",
-                "section": section,
-                "text": text
-            })
+            try:
+                emb = embed_text_clip(text)
+                text_embeddings.append(emb)
+                text_metadata.append({
+                    "page_id": page_id,
+                    "title": title,
+                    "url": url,
+                    "type": "text",
+                    "section": section,
+                    "text": text
+                })
+            except Exception as e:
+                print(f"[!] Failed to embed text block: {e}")
 
         elif block_type == "image":
             filename = block.get("filename")
             caption = block.get("caption", "No caption")
             img_path = os.path.join(IMAGE_DIR, filename)
+
             if not os.path.exists(img_path):
-                print(f"[!] Missing image file: {img_path}")
+                print(f"[!] Missing image: {img_path}")
                 continue
-            emb = embed_image_clip(img_path)
-            image_embeddings.append(emb)
-            image_metadata.append({
-                "page_id": page_id,
-                "title": title,
-                "url": url,
-                "type": "image",
-                "section": section,
-                "filename": filename,
-                "caption": caption
-            })
+
+            try:
+                emb = embed_image_clip(img_path)
+                image_embeddings.append(emb)
+                image_metadata.append({
+                    "page_id": page_id,
+                    "title": title,
+                    "url": url,
+                    "type": "image",
+                    "section": section,
+                    "filename": filename,
+                    "caption": caption
+                })
+            except Exception as e:
+                print(f"[!] Failed to embed image {filename}: {e}")
 
 print(f"Embedded {len(text_embeddings)} text blocks and {len(image_embeddings)} images.")
 
-text_embeddings = np.array(text_embeddings).astype("float32")
-image_embeddings = np.array(image_embeddings).astype("float32")
+# -------------------- FAISS --------------------
+text_embeddings = np.stack(text_embeddings).astype("float32")
+image_embeddings = np.stack(image_embeddings).astype("float32")
 
-# Build FAISS indices (512 dim) natra tyo unmatched error falxa
 dim = 512
 text_index = faiss.IndexFlatIP(dim)
-text_index.add(text_embeddings)
-
 image_index = faiss.IndexFlatIP(dim)
+
+text_index.add(text_embeddings)
 image_index.add(image_embeddings)
 
-# Save indices and metadata final ho hai yo
 faiss.write_index(text_index, os.path.join(INDEX_DIR, "text.index"))
 faiss.write_index(image_index, os.path.join(INDEX_DIR, "image.index"))
 
@@ -115,4 +160,4 @@ with open(os.path.join(INDEX_DIR, "text_meta.json"), "w", encoding="utf-8") as f
 with open(os.path.join(INDEX_DIR, "image_meta.json"), "w", encoding="utf-8") as f:
     json.dump(image_metadata, f, indent=2, ensure_ascii=False)
 
-print("Embedding and index creation complete.")
+print("✅ Embedding and indexing complete.")

@@ -1,19 +1,21 @@
+# backend/search.py
 import os
-import numpy as np
-import torch
-from PIL import Image
-import faiss
 import json
+import faiss
+import torch
+import numpy as np
+from PIL import Image
 from transformers import CLIPProcessor, CLIPModel
 
+# -------------------- Paths --------------------
 INDEX_DIR = "indices1"
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-# Load CLIP model
+# -------------------- Load CLIP --------------------
 clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
-clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32", use_fast=False)
 
-# Load FAISS indices
+# -------------------- Load FAISS --------------------
 text_index = faiss.read_index(os.path.join(INDEX_DIR, "text.index"))
 image_index = faiss.read_index(os.path.join(INDEX_DIR, "image.index"))
 
@@ -23,118 +25,84 @@ with open(os.path.join(INDEX_DIR, "text_meta.json"), "r", encoding="utf-8") as f
 with open(os.path.join(INDEX_DIR, "image_meta.json"), "r", encoding="utf-8") as f:
     image_meta = json.load(f)
 
+# -------------------- Utility Functions --------------------
+def normalize(v: np.ndarray) -> np.ndarray:
+    return v / np.linalg.norm(v)
 
-def normalize(vec):
-    norm = np.linalg.norm(vec)
-    return vec if norm == 0 else vec / norm
-
-
-def embed_text(text: str):
+def embed_text(text: str) -> np.ndarray:
     inputs = clip_processor(text=[text], return_tensors="pt", padding=True, truncation=True).to(device)
     with torch.no_grad():
         emb = clip_model.get_text_features(**inputs)
-    return normalize(emb[0].cpu().numpy()).astype("float32")
+        if hasattr(emb, "pooler_output"):  # in case HF returns BaseModelOutputWithPooling
+            emb = emb.pooler_output
+    emb = torch.tensor(emb) if not isinstance(emb, torch.Tensor) else emb
+    return normalize(emb.cpu().numpy().reshape(-1)).astype("float32")
 
-
-def embed_image_pil(image: Image.Image):
+def embed_image(image: Image.Image) -> np.ndarray:
     inputs = clip_processor(images=image, return_tensors="pt").to(device)
     with torch.no_grad():
         emb = clip_model.get_image_features(**inputs)
-    return normalize(emb[0].cpu().numpy()).astype("float32")
+        if hasattr(emb, "pooler_output"):
+            emb = emb.pooler_output
+    emb = torch.tensor(emb) if not isinstance(emb, torch.Tensor) else emb
+    return normalize(emb.cpu().numpy().reshape(-1)).astype("float32")
 
+# -------------------- FAISS Search --------------------
+def search_from_embedding(emb: np.ndarray, k: int = 5):
+    emb = emb.reshape(1, -1).astype("float32")
+    # Text search
+    D_t, I_t = text_index.search(emb, k)
+    text_results = [
+        {
+            "title": text_meta[i]["title"],
+            "text": text_meta[i]["text"],
+            "url": text_meta[i].get("url"),
+            "score": float(d)
+        }
+        for i, d in zip(I_t[0], D_t[0])
+    ]
 
-# ----- Text search -----
-def search_text(query: str, k=5):
-    q = embed_text(query)
-    D, I = text_index.search(np.array([q]), k)
-    results = []
-    for idx, score in zip(I[0], D[0]):
-        meta = text_meta[idx]
-        results.append({
-            "page_id": meta["page_id"],
-            "title": meta["title"],
-            "url": meta.get("url"),
-            "section": meta.get("section"),
-            "text": meta.get("text"),
-            "score": float(score)
-        })
-    return results
+    # Image search
+    D_i, I_i = image_index.search(emb, k)
+    image_results = [
+        {
+            "title": image_meta[i]["title"],
+            "filename": image_meta[i]["filename"],
+            "caption": image_meta[i].get("caption"),
+            "url": image_meta[i].get("url"),
+            "score": float(d)
+        }
+        for i, d in zip(I_i[0], D_i[0])
+    ]
 
+    return text_results, image_results
 
-# ----- Image search -----
-def search_image(image: Image.Image, k=5):
-    q = embed_image_pil(image)
-    D, I = image_index.search(np.array([q]), k)
-    results = []
-    for idx, score in zip(I[0], D[0]):
-        meta = image_meta[idx]
-        results.append({
-            "page_id": meta["page_id"],
-            "title": meta["title"],
-            "url": meta.get("url"),
-            "filename": meta.get("filename"),
-            "caption": meta.get("caption"),
-            "score": float(score)
-        })
-    return results
-
-
-# ----- Image search using text query -----
-def search_image_from_text(query: str, k=5):
-    q_emb = embed_text(query)
-    D, I = image_index.search(np.array([q_emb]), k)
-    results = []
-    for idx, score in zip(I[0], D[0]):
-        meta = image_meta[idx]
-        results.append({
-            "page_id": meta["page_id"],
-            "title": meta["title"],
-            "url": meta.get("url"),
-            "filename": meta.get("filename"),
-            "caption": meta.get("caption"),
-            "score": float(score)
-        })
-    return results
-
-
-# ----- Unified search by text -----
-def search_unified(query: str, k=5):
+# -------------------- Unified Search Functions --------------------
+def unified_text_search(query: str, k: int = 5):
+    emb = embed_text(query)
+    text, images = search_from_embedding(emb, k)
     return {
-        "text_results": search_text(query, k),
-        "image_results": search_image_from_text(query, k)
+        "text_results": text,
+        "image_results": images,
+        "embedding": emb.tolist()
     }
 
+def unified_image_search(image: Image.Image, k: int = 5):
+    emb = embed_image(image)
+    text, images = search_from_embedding(emb, k)
+    return {
+        "text_results": text,
+        "image_results": images,
+        "embedding": emb.tolist()
+    }
 
-# ----- Unified search by image -----
-def search_unified_by_image(image: Image.Image, k=5):
-    q_emb = embed_image_pil(image)
-
-    # Text search using image embedding
-    D_text, I_text = text_index.search(np.array([q_emb]), k)
-    text_results = []
-    for idx, score in zip(I_text[0], D_text[0]):
-        meta = text_meta[idx]
-        text_results.append({
-            "page_id": meta["page_id"],
-            "title": meta["title"],
-            "url": meta.get("url"),
-            "section": meta.get("section"),
-            "text": meta.get("text"),
-            "score": float(score)
-        })
-
-    # Image search using image embedding
-    D_img, I_img = image_index.search(np.array([q_emb]), k)
-    image_results = []
-    for idx, score in zip(I_img[0], D_img[0]):
-        meta = image_meta[idx]
-        image_results.append({
-            "page_id": meta["page_id"],
-            "title": meta["title"],
-            "url": meta.get("url"),
-            "filename": meta.get("filename"),
-            "caption": meta.get("caption"),
-            "score": float(score)
-        })
-
-    return {"text_results": text_results, "image_results": image_results}
+def refine_search(base_embedding: list, refinement: str, alpha: float = 0.6, k: int = 5):
+    base = np.array(base_embedding).astype("float32")
+    refine_emb = embed_text(refinement)
+    blended = normalize((1 - alpha) * base + alpha * refine_emb)
+    text, images = search_from_embedding(blended, k)
+    return {
+        "text_results": text,
+        "image_results": images,
+        "embedding": blended.tolist()
+    }

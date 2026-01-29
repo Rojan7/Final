@@ -1,144 +1,228 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import { refineSearch } from "../api/api";
 
-export default function SearchPage({ isDark }) {
+export default function SearchPage() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState({ text_results: [], image_results: [] });
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [baseEmbedding, setBaseEmbedding] = useState(null);
+  const [refineText, setRefineText] = useState("");
+  const [refining, setRefining] = useState(false);
+  const [searchHistory, setSearchHistory] = useState([]);
+  const [activeResultIndex, setActiveResultIndex] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const resultsRef = useRef(null);
 
-  // Logic for unified search
+  useEffect(() => {
+    if (hasSearched && resultsRef.current) {
+      setTimeout(() => {
+        resultsRef.current.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    }
+  }, [hasSearched]);
+
   const performSearch = async (q = query) => {
-    if (!q) return;
+    if (!q.trim()) return;
     setLoading(true);
     setHasSearched(true);
+
     try {
-      const res = await axios.get(`http://localhost:8000/search?q=${q}`);
-      setResults({
-        text_results: res.data.text_results || [],
-        image_results: res.data.image_results || []
-      });
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+      const res = await axios.get(
+        `http://localhost:8000/search?q=${encodeURIComponent(q)}`
+      );
+      setResults(res.data);
+      setBaseEmbedding(res.data.embedding);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleImageUpload = async (file) => {
     if (!file) return;
     setLoading(true);
     setHasSearched(true);
+
     const formData = new FormData();
     formData.append("file", file);
+
     try {
-      const res = await axios.post("http://localhost:8000/search/image/unified", formData);
+      const res = await axios.post(
+        "http://localhost:8000/search/image/unified",
+        formData
+      );
       setResults(res.data);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+      setBaseEmbedding(res.data.embedding);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefine = async () => {
+    if (!refineText.trim() || !baseEmbedding) return;
+    setRefining(true);
+
+    try {
+      const data = await refineSearch(baseEmbedding, refineText);
+      setResults(data);
+      setBaseEmbedding(data.embedding);
+      setQuery((q) => `${q} → ${refineText}`);
+      setRefineText("");
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setRefining(false);
+    }
   };
 
   return (
-    <div className={`relative z-10 w-full transition-all duration-1000 ease-in-out ${!hasSearched ? "flex flex-col items-center justify-center min-h-screen" : "pt-8"}`}>
+    <div className="min-h-screen bg-gradient-to-br from-[#0b0f19] via-[#0f172a] to-[#020617] text-slate-200">
       
-      {/* --- HERO / SEARCH SECTION --- */}
-      <section className={`w-full max-w-4xl px-6 transition-all duration-700 ${hasSearched ? "mb-8 flex flex-row items-center gap-6" : "text-center"}`}>
-        
-        {/* Futuristic Logo */}
-        <h1 
-          onClick={() => {setHasSearched(false); setQuery("");}}
-          className={`font-black tracking-tighter cursor-pointer transition-all duration-700 
-            ${hasSearched 
-              ? "text-3xl bg-gradient-to-r from-indigo-500 to-cyan-400 bg-clip-text text-transparent" 
-              : "text-9xl mb-12 dark:text-white text-slate-900 drop-shadow-2xl hover:tracking-normal transition-all"}`}
+      {/* Background grid */}
+      <div className="fixed inset-0 -z-10 opacity-[0.05]"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, #6366f1 1px, transparent 1px), linear-gradient(to bottom, #6366f1 1px, transparent 1px)",
+          backgroundSize: "80px 80px",
+        }}
+      />
+
+      {/* HEADER */}
+      <section className={`max-w-7xl mx-auto px-6 transition-all ${hasSearched ? "pt-8" : "min-h-screen flex flex-col justify-center text-center"}`}>
+        <h1
+          onClick={() => {
+            setHasSearched(false);
+            setQuery("");
+            setResults({ text_results: [], image_results: [] });
+            setBaseEmbedding(null);
+          }}
+          className={`cursor-pointer font-black tracking-tight transition-all ${
+            hasSearched
+              ? "text-5xl bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent"
+              : "text-8xl md:text-9xl text-white"
+          }`}
         >
-          NEXUS<span className="text-indigo-500 animate-ping inline-block w-3 h-3 bg-indigo-500 rounded-full ml-2"></span>
+          NEXUS<span className="text-indigo-500">.</span>
         </h1>
 
-        {/* Floating Search Bar */}
-        <div className={`relative w-full group transition-all duration-700 ${hasSearched ? "max-w-2xl" : "max-w-3xl"}`}>
-          <div className={`absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-400 rounded-[2.5rem] blur-xl opacity-0 
-            ${isFocused ? "opacity-40" : "group-hover:opacity-20"} transition duration-1000 animate-gradient-x`}></div>
-          
-          <div className="relative flex items-center bg-white/70 dark:bg-black/40 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-[2rem] p-2 shadow-2xl overflow-hidden">
-            <div className="pl-5 text-indigo-500">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            
+        {!hasSearched && (
+          <p className="mt-4 text-slate-400">
+            Dark semantic multimodal search engine
+          </p>
+        )}
+
+        {/* SEARCH BAR */}
+        <div className="mt-12 max-w-3xl mx-auto relative">
+          <div
+            className={`absolute -inset-1 rounded-3xl blur-xl transition ${
+              isFocused ? "bg-indigo-500/30" : "bg-transparent"
+            }`}
+          />
+          <div className="relative flex items-center bg-slate-900/80 border border-slate-700 rounded-3xl p-3 backdrop-blur-xl">
             <input
-              type="text"
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
+              className="flex-1 bg-transparent outline-none text-lg px-4 text-slate-200 placeholder-slate-500"
+              placeholder="Search the dark nexus..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && performSearch()}
-              placeholder="Ask the dataset anything..."
-              className="w-full px-5 py-4 text-xl bg-transparent outline-none dark:text-white text-slate-800 placeholder:text-slate-400 font-light"
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
             />
 
-            {/* Visual Search Toggle */}
-            <label className="flex items-center px-4 cursor-pointer group/cam">
-              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e.target.files[0])} />
-              <div className="p-3 bg-indigo-500/10 rounded-2xl group-hover/cam:bg-indigo-500 group-hover/cam:text-white transition-all text-indigo-500">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                </svg>
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => handleImageUpload(e.target.files[0])}
+              />
+              <div className="p-3 rounded-full bg-slate-800 hover:bg-indigo-600 transition">
+                📷
               </div>
             </label>
           </div>
         </div>
       </section>
 
-      {/* --- CONTENT DASHBOARD --- */}
-      <main className={`max-w-[1600px] mx-auto px-8 pb-20 transition-all duration-1000 ${hasSearched ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
-        
-        {loading ? (
-          <div className="flex flex-col items-center py-40">
-             <div className="relative w-20 h-20">
-                <div className="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
-                <div className="absolute inset-0 border-4 border-t-indigo-500 rounded-full animate-spin"></div>
-             </div>
-             <p className="mt-8 text-indigo-500 font-bold tracking-[0.3em] animate-pulse uppercase text-xs">Processing Nexus Streams</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            
-            {/* Left: Intelligence (Text Results) */}
-            <div className="lg:col-span-7 space-y-6">
-              <h2 className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.4em] mb-4">Textual Intelligence</h2>
-              {results.text_results.map((item, idx) => (
-                <div key={idx} className="group bg-white/5 dark:bg-white/[0.03] backdrop-blur-sm border border-white/10 p-6 rounded-[2rem] hover:bg-white/10 dark:hover:bg-white/[0.07] transition-all hover:scale-[1.01] hover:shadow-2xl duration-300">
-                  <div className="flex items-center gap-3 mb-3 text-xs text-slate-400">
-                    <span className="bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded-md">WIKI-CLIP</span>
-                    <span className="truncate">{item.url}</span>
-                  </div>
-                  <a href={item.url} target="_blank" className="text-2xl font-bold dark:text-white text-slate-800 hover:text-indigo-400 transition-colors block mb-3">
-                    {item.title}
+      {/* RESULTS */}
+      {hasSearched && (
+        <main
+          ref={resultsRef}
+          className="max-w-[1400px] mx-auto px-6 py-16 grid grid-cols-1 lg:grid-cols-12 gap-16"
+        >
+          {/* TEXT */}
+          <div className="lg:col-span-7 space-y-10">
+            {results.text_results.map((item, idx) => (
+              <article
+                key={idx}
+                onMouseEnter={() => setActiveResultIndex(idx)}
+                onMouseLeave={() => setActiveResultIndex(null)}
+                className="relative bg-slate-900/70 border border-slate-800 rounded-3xl p-8 hover:border-indigo-500 transition"
+              >
+                <h3 className="text-2xl font-bold text-white mb-4">
+                  {item.title}
+                </h3>
+                <p className="text-slate-400">
+                  {item.text?.substring(0, 280)}...
+                </p>
+                {item.url && (
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block mt-4 text-indigo-400 hover:underline"
+                  >
+                    Read more →
                   </a>
-                  <p className="text-slate-400 leading-relaxed font-light">{item.text.substring(0, 300)}...</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Right: Visual Matrix (Image Grid) */}
-            <div className="lg:col-span-5">
-              <h2 className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.4em] mb-4">Visual Matrix</h2>
-              <div className="grid grid-cols-2 gap-4">
-                {results.image_results.map((img, i) => (
-                  <div key={i} className="group relative aspect-square rounded-[2rem] overflow-hidden border border-white/10 bg-slate-900 shadow-lg">
-                    <img src={`http://localhost:8000/wikipedia_scrape/images/${img.filename}`} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-125" alt="" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-indigo-950 via-transparent p-6 flex flex-col justify-end opacity-0 group-hover:opacity-100 transition-all duration-500">
-                      <p className="text-white font-bold text-sm leading-tight">{img.title}</p>
-                      <button className="mt-4 py-2 bg-white/20 backdrop-blur-md rounded-xl text-[10px] uppercase font-bold text-white tracking-widest hover:bg-white/40 transition-all">Expand View</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
+                )}
+              </article>
+            ))}
           </div>
-        )}
-      </main>
+
+          {/* IMAGES */}
+          <div className="lg:col-span-5 columns-2 gap-4 space-y-4">
+            {results.image_results.map((img, i) => (
+              <div
+                key={i}
+                onClick={() => setSelectedImage(img)}
+                className="rounded-2xl overflow-hidden bg-slate-800 cursor-pointer hover:scale-[1.02] transition"
+              >
+                <img
+                  src={`http://localhost:8000/wikipedia_scrape/images/${img.filename}`}
+                  alt={img.caption}
+                  className="w-full object-cover"
+                />
+              </div>
+            ))}
+          </div>
+        </main>
+      )}
+
+      {/* IMAGE MODAL */}
+      {selectedImage && (
+        <div
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-[999]"
+          onClick={() => setSelectedImage(null)}
+        >
+          <img
+            src={`http://localhost:8000/wikipedia_scrape/images/${selectedImage.filename}`}
+            className="max-h-[90vh] rounded-2xl"
+          />
+        </div>
+      )}
+
+      {/* LOADER */}
+      {(loading || refining) && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur flex items-center justify-center z-[500]">
+          <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
     </div>
   );
 }
