@@ -258,7 +258,7 @@ export default function SearchPage() {
                     <div className="w-6 h-6 bg-indigo-50 rounded-lg flex items-center justify-center text-[10px] font-bold text-indigo-500">W</div>
                     <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">{item.url || "source.nexus"}</span>
                   </div>
-                  <a href={item.url} target="_blank" className="text-2xl font-bold text-slate-900 hover:text-indigo-600 transition-colors block mb-3 leading-tight">
+                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-2xl font-bold text-slate-900 hover:text-indigo-600 transition-colors block mb-3 leading-tight">
                     {item.title}
                   </a>
                   <p className="text-slate-500 leading-relaxed font-normal text-[15px]">{item.text.substring(0, 280)}...</p>
@@ -271,12 +271,18 @@ export default function SearchPage() {
               <h2 className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.4em] mb-6 text-center">Visual Insight</h2>
               <div className="grid grid-cols-2 gap-4">
                 {results.image_results.map((img, i) => (
-                  <div key={i} className="group relative aspect-square rounded-[2rem] overflow-hidden border border-white bg-white shadow-sm ring-1 ring-slate-100">
-                    <img src={`http://localhost:8000/wikipedia_scrape/images/${img.filename}`} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt="" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-indigo-600/90 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-5">
-                      <p className="text-white font-bold text-xs uppercase tracking-tighter">{img.title}</p>
+                  <a href={img.url || "#"} target="_blank" rel="noopener noreferrer" key={i}>
+                    <div className="group relative aspect-square rounded-[2rem] overflow-hidden border border-white bg-white shadow-sm ring-1 ring-slate-100">
+                      <img 
+                        src={`http://localhost:8000/wikipedia_scrape/images/${img.filename}`} 
+                        alt={img.caption || img.title} 
+                        className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-indigo-600/90 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-5">
+                        <p className="text-white font-bold text-xs uppercase tracking-tighter">{img.title}</p>
+                      </div>
                     </div>
-                  </div>
+                  </a>
                 ))}
               </div>
             </div>
