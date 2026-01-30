@@ -11,7 +11,7 @@ from tqdm import tqdm
 # ---------------- CONFIG ----------------
 start_url = "https://en.wikipedia.org/wiki/Kallang_Field"
 allowed_domain = "en.wikipedia.org"
-max_pages = 400
+max_pages = 401
 
 output_dir = "wikipedia_scrape"
 os.makedirs(output_dir, exist_ok=True)
