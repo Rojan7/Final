@@ -6,7 +6,7 @@ import torch
 from PIL import Image
 from transformers import CLIPProcessor, CLIPModel, logging
 
-# -------------------- Silence HF noise --------------------
+
 logging.set_verbosity_error()
 
 # -------------------- Paths --------------------

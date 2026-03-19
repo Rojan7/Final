@@ -138,3 +138,16 @@ def search_unified_by_image(image: Image.Image, k=5):
         })
 
     return {"text_results": text_results, "image_results": image_results}
+
+# def indexed_result(clz, text_index, image_index, text_meta, image_meta):{
+#     pipeline_index = {
+#         "text_index": text_index,
+#         "image_index": image_index,
+#         "text_meta": text_meta,
+#         "image_meta": image_meta
+#     }
+#     second = json.dumps(pipeline_index)
+#     return second
+
+
+# }

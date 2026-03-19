@@ -26,26 +26,27 @@ HEADERS = {
 page_count = 0
 image_count = 0
 
-
-# ---------------- SCRAPE PAGE ----------------
-def extract_content(url, page_id):
+# ---------------- SCRAPE PAGE (and extract links) ----------------
+def extract_content_and_links(url, page_id, downloaded_images):
+    """
+    Fetch page once, extract content, images, and links.
+    """
     global image_count
+    content_blocks = []
+    links = set()
 
     response = requests.get(url, headers=HEADERS, timeout=10)
     if response.status_code != 200:
         raise Exception(f"HTTP {response.status_code}")
 
     soup = BeautifulSoup(response.content, "html.parser")
-
     title = soup.title.string.strip() if soup.title else "No Title"
 
     # Remove scripts/styles
     for tag in soup(["script", "style", "noscript"]):
         tag.decompose()
 
-    content_blocks = []
     current_section = ""
-
     for tag in soup.find_all(["h1", "h2", "h3", "p", "img"]):
 
         if tag.name in ["h1", "h2", "h3"]:
@@ -63,7 +64,12 @@ def extract_content(url, page_id):
         elif tag.name == "img" and tag.has_attr("src"):
             img_url = urljoin(url, tag["src"])
 
+            # Skip non-image extensions
             if not any(img_url.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png"]):
+                continue
+
+            # Skip already downloaded images
+            if img_url in downloaded_images:
                 continue
 
             try:
@@ -86,11 +92,23 @@ def extract_content(url, page_id):
                     "caption": caption
                 })
 
+                downloaded_images.add(img_url)
                 image_count += 1
 
             except:
                 continue
 
+    # Extract links from same soup (no extra request)
+    for a in soup.find_all("a", href=True):
+        href = a["href"]
+        full_url = urljoin(url, href)
+        parsed = urlparse(full_url)
+
+        if parsed.netloc == allowed_domain and parsed.scheme.startswith("http"):
+            if "/wiki/" in parsed.path and ":" not in parsed.path.split("/wiki/")[-1]:
+                links.add(full_url)
+
+    # Save metadata
     metadata = {
         "page_id": page_id,
         "url": url,
@@ -102,50 +120,27 @@ def extract_content(url, page_id):
     with open(meta_file, "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2, ensure_ascii=False)
 
-    return title
-
-
-# ---------------- EXTRACT LINKS ----------------
-def extract_links(url):
-    links = set()
-
-    try:
-        response = requests.get(url, headers=HEADERS, timeout=10)
-        soup = BeautifulSoup(response.content, "html.parser")
-
-        for a in soup.find_all("a", href=True):
-            href = a["href"]
-            full_url = urljoin(url, href)
-            parsed = urlparse(full_url)
-
-            if parsed.netloc == allowed_domain and parsed.scheme.startswith("http"):
-                if "/wiki/" in parsed.path and ":" not in parsed.path.split("/wiki/")[-1]:
-                    links.add(full_url)
-
-    except:
-        pass
-
-    return links
-
+    return title, links
 
 # ---------------- BFS CRAWLER ----------------
 def bfs_crawl(start_url, max_pages):
     global page_count
 
-    visited = set()
+    visited_pages = set()
+    downloaded_images = set()
     queue = deque([start_url])
 
     with tqdm(total=max_pages, desc="Crawling Wikipedia") as pbar:
         while queue and page_count <= max_pages:
             current = queue.popleft()
 
-            if current in visited:
+            if current in visited_pages:
                 continue
 
-            visited.add(current)
+            visited_pages.add(current)
 
             try:
-                title = extract_content(current, page_count)
+                title, links = extract_content_and_links(current, page_count, downloaded_images)
                 pbar.set_description(f"Scraped: {title[:50]}")
                 pbar.update(1)
                 page_count += 1
@@ -154,10 +149,10 @@ def bfs_crawl(start_url, max_pages):
                 print(f"[!] Failed: {current} ({e})")
                 continue
 
-            for link in extract_links(current):
-                if link not in visited:
+            # Enqueue new links only if not visited or in queue
+            for link in links:
+                if link not in visited_pages and link not in queue:
                     queue.append(link)
-
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":

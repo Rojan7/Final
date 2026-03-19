@@ -17,7 +17,7 @@ export default function SearchPage() {
   const [isDark, setIsDark] = useState(false);
   const resultsRef = useRef(null);
 
-  // Auto-scroll to results after search
+  // HOOK LAGyera nai garya xa hai check it
   useEffect(() => {
     if (hasSearched && resultsRef.current) {
       setTimeout(() => {
@@ -365,7 +365,7 @@ export default function SearchPage() {
                 </div>
               </div>
               <p className={`text-xs text-center mt-3 animate-in fade-in duration-500 delay-200 ${isDark ? "text-slate-500" : "text-slate-400"}`}>
-                Iteratively refine results with natural language
+                
               </p>
             </div>
           )}
