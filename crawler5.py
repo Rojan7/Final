@@ -7,11 +7,13 @@ from PIL import Image
 from io import BytesIO
 import json
 from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ---------------- CONFIG ----------------
-start_url = "https://en.wikipedia.org/wiki/Balen_Shah"
+start_url = "https://en.wikipedia.org/wiki/Nepal"
 allowed_domain = "en.wikipedia.org"
 max_pages = 100
+max_workers = 100  # Number of parallel workers
 
 output_dir = "wikipedia_scrape"
 os.makedirs(output_dir, exist_ok=True)
@@ -23,8 +25,8 @@ HEADERS = {
 }
 
 # ---------------- COUNTERS ----------------
-page_count = 11
-image_count = 37
+page_count = 0
+image_count = 0
 
 # ---------------- SCRAPE PAGE (and extract links) ----------------
 def extract_content_and_links(url, page_id, downloaded_images):
@@ -122,38 +124,43 @@ def extract_content_and_links(url, page_id, downloaded_images):
 
     return title, links
 
-# ---------------- BFS CRAWLER ----------------
-def bfs_crawl(start_url, max_pages):
+# ---------------- BFS CRAWLER WITH WORKERS ----------------
+def bfs_crawl_parallel(start_url, max_pages, max_workers=5):
     global page_count
 
     visited_pages = set()
     downloaded_images = set()
     queue = deque([start_url])
 
-    with tqdm(total=max_pages, desc="Crawling Wikipedia") as pbar:
-        while queue and page_count <= max_pages:
-            current = queue.popleft()
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = dict()  # future -> url
 
-            if current in visited_pages:
-                continue
+        with tqdm(total=max_pages, desc="Crawling Wikipedia") as pbar:
+            while queue or futures:
+                # Submit new tasks while there is space
+                while queue and page_count + len(futures) < max_pages:
+                    current = queue.popleft()
+                    if current in visited_pages:
+                        continue
+                    visited_pages.add(current)
+                    future = executor.submit(extract_content_and_links, current, page_count + len(futures), downloaded_images)
+                    futures[future] = current
 
-            visited_pages.add(current)
+                # Process completed futures **safely**
+                done_futures = [f for f in futures if f.done()]
+                for future in done_futures:
+                    url = futures.pop(future)
+                    try:
+                        title, links = future.result()
+                        page_count += 1
+                        pbar.set_description(f"Scraped: {title[:50]}")
+                        pbar.update(1)
 
-            try:
-                title, links = extract_content_and_links(current, page_count, downloaded_images)
-                pbar.set_description(f"Scraped: {title[:50]}")
-                pbar.update(1)
-                page_count += 1
+                        # Enqueue new links
+                        for link in links:
+                            if link not in visited_pages and link not in queue:
+                                queue.append(link)
 
-            except Exception as e:
-                print(f"[!] Failed: {current} ({e})")
-                continue
-
-            # Enqueue new links only if not visited or in queue
-            for link in links:
-                if link not in visited_pages and link not in queue:
-                    queue.append(link)
-
-# ---------------- RUN ----------------
-if __name__ == "__main__":
-    bfs_crawl(start_url, max_pages)
+                    except Exception as e:
+                        print(f"[!] Failed: {url} ({e})")
+bfs_crawl_parallel(start_url, max_pages, max_workers=max_workers)

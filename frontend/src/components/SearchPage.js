@@ -443,6 +443,15 @@ export default function SearchPage() {
                           <span className="truncate">{item.url}</span>
                         </a>
                       )}
+                      {item.section && (
+                        <span className={`px-2.5 py-1 text-[10px] font-semibold rounded-full ${
+                          isDark
+                            ? "bg-slate-800 text-slate-400 border border-slate-700/70"
+                            : "bg-slate-100 text-slate-500 border border-slate-200"
+                        }`}>
+                          {item.section}
+                        </span>
+                      )}
                     </div>
                     
                     {/* Title */}
