@@ -5,7 +5,9 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 import io
 
-from backend.search import unified_text_search, unified_image_search
+from backend.search import unified_text_search, unified_image_search, refine_results
+from pydantic import BaseModel
+from typing import Any
 
 app = FastAPI(title="Multimodal Search API")
 
@@ -74,3 +76,30 @@ async def image_search_unified(
 ):
     """Alias of /search/image — kept for backwards compatibility."""
     return await _run_image_search(file, k)
+
+
+# -------------------- Refinement --------------------
+class RefineRequest(BaseModel):
+    text_results:   list[Any]
+    image_results:  list[Any]
+    original_query: str
+    constraint:     str
+    k:              int = 10
+
+
+@app.post("/refine")
+def refine(req: RefineRequest):
+    """
+    Re-rank existing search results using a refinement constraint.
+    Does NOT perform a new FAISS search — pure CrossEncoder + CLIP re-ranking.
+
+    - text_results: re-ranked by CrossEncoder(original_query + constraint, passage)
+    - image_results: re-ranked by CLIP zero-shot(image, constraint)
+    """
+    return refine_results(
+        text_results   = req.text_results,
+        image_results  = req.image_results,
+        original_query = req.original_query,
+        constraint     = req.constraint,
+        k              = req.k,
+    )

@@ -1,661 +1,763 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
-import { refineSearch } from "../api/api";
+
+function TextCard({ item, idx, isDark }) {
+  const snippet = (item.snippet || item.text || "").replace(/\.{3}$/, "").replace(/\.\.\.$/, "").trim();
+
+  const domain = (() => {
+    try { return new URL(item.url).hostname.replace("www.", ""); }
+    catch { return ""; }
+  })();
+
+  const path = (() => {
+    try {
+      const u = new URL(item.url);
+      const p = u.pathname + u.hash;
+      return p.length > 55 ? p.slice(0, 55) + "…" : p;
+    } catch { return ""; }
+  })();
+
+  return (
+    <article style={{ padding: "18px 0", borderBottom: `1px solid ${isDark ? "#1e1e1c" : "#EDEAE6"}` }}>
+      {/* breadcrumb */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
+        <div style={{
+          width: 18, height: 18, borderRadius: 4,
+          background: isDark ? "#2C2C29" : "#E8E4DF",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0, overflow: "hidden",
+        }}>
+          <img
+            src={`https://www.google.com/s2/favicons?sz=32&domain=${domain}`}
+            alt=""
+            style={{ width: 12, height: 12, objectFit: "contain" }}
+            onError={(e) => { e.target.style.display = "none"; }}
+          />
+        </div>
+        <span style={{ fontSize: 13, color: isDark ? "#888680" : "#6B6560" }}>{domain}</span>
+        {path && (
+          <span style={{ fontSize: 12, color: isDark ? "#555350" : "#9C9690", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "min(220px, 45vw)" }}>
+            {path}
+          </span>
+        )}
+      </div>
+
+      {/* title */}
+      <a
+        href={item.url || "#"}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: "block",
+          fontSize: "clamp(16px, 4vw, 19px)",
+          fontWeight: 400,
+          color: isDark ? "#4ABA74" : "#1A6B3C",
+          textDecoration: "none",
+          marginBottom: 6,
+          lineHeight: 1.35,
+          letterSpacing: "-0.01em",
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.textDecoration = "underline"}
+        onMouseLeave={(e) => e.currentTarget.style.textDecoration = "none"}
+      >
+        {item.title}
+      </a>
+
+      {/* snippet — plain, no highlighting */}
+      {snippet && (
+        <p style={{
+          fontSize: 14,
+          color: isDark ? "#888680" : "#6B6560",
+          lineHeight: 1.7,
+          margin: 0,
+          display: "-webkit-box",
+          WebkitLineClamp: 3,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+        }}>
+          {snippet}
+        </p>
+      )}
+    </article>
+  );
+}
+
+function ImageLightbox({ img, onClose, isDark }) {
+  // hooks must be called before any conditional return
+  useEffect(() => {
+    if (!img) return;
+    const handler = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [img, onClose]);
+
+  if (!img) return null;
+
+  const SURFACE = isDark ? "#1C1C1A" : "#FFFFFF";
+  const TEXT    = isDark ? "#EEECE8" : "#1A1916";
+  const MUTED   = isDark ? "#888680" : "#6B6560";
+  const ACCENT  = isDark ? "#4ABA74" : "#1A6B3C";
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 500,
+        background: "rgba(0,0,0,0.82)",
+        backdropFilter: "blur(10px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 20, animation: "fadeIn 0.18s ease",
+      }}
+    >
+      <style>{`@keyframes fadeIn { from { opacity:0; } to { opacity:1; } } @keyframes slideUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }`}</style>
+
+      {/* close button */}
+      <button
+        onClick={onClose}
+        style={{
+          position: "absolute", top: 20, right: 20,
+          width: 36, height: 36, borderRadius: "50%",
+          background: "rgba(255,255,255,0.12)",
+          border: "1px solid rgba(255,255,255,0.18)",
+          color: "#fff", cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "background 0.15s",
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.22)"}
+        onMouseLeave={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.12)"}
+      >
+        <svg style={{ width: 16, height: 16 }} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+          <path d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      {/* card */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: SURFACE,
+          borderRadius: 16,
+          overflow: "hidden",
+          maxWidth: "min(680px, 92vw)",
+          width: "100%",
+          boxShadow: "0 32px 80px rgba(0,0,0,0.5)",
+          animation: "slideUp 0.22s ease",
+        }}
+      >
+        {/* image */}
+        <div style={{ background: isDark ? "#111110" : "#F0EDEA", lineHeight: 0 }}>
+          <img
+            src={`http://localhost:8000/wikipedia_scrape/images/${img.filename}`}
+            alt={img.caption || img.title || ""}
+            style={{ width: "100%", maxHeight: "62vh", objectFit: "contain", display: "block" }}
+          />
+        </div>
+
+        {/* info + link */}
+        <div style={{ padding: "18px 20px 20px" }}>
+          {img.title && (
+            <p style={{ fontSize: 15, fontWeight: 500, color: TEXT, margin: "0 0 6px", lineHeight: 1.4 }}>
+              {img.title}
+            </p>
+          )}
+          {img.caption && (
+            <p style={{ fontSize: 13, color: MUTED, margin: "0 0 16px", lineHeight: 1.6 }}>
+              {img.caption}
+            </p>
+          )}
+          {img.url && (
+            <a
+              href={img.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 7,
+                fontSize: 13, fontWeight: 500, color: ACCENT,
+                textDecoration: "none",
+                padding: "8px 14px",
+                border: `1px solid ${isDark ? "#2a4a35" : "#c2dfd0"}`,
+                borderRadius: 8,
+                background: isDark ? "#1A2E22" : "#EAF3EE",
+                transition: "opacity 0.15s",
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = "0.8"}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
+            >
+              <svg style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              View full article
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ImageCard({ img, isDark, onOpen }) {
+  const [errored, setErrored] = useState(false);
+
+  if (errored || !img.filename) return null;
+
+  return (
+    <div
+      onClick={() => onOpen(img)}
+      title="Click to view"
+      style={{
+        borderRadius: 8, overflow: "hidden",
+        cursor: "pointer",
+        background: isDark ? "#1C1C1A" : "#fff",
+        border: `1px solid ${isDark ? "#2C2C29" : "#E8E4DF"}`,
+        transition: "transform 0.2s, box-shadow 0.2s",
+        breakInside: "avoid", marginBottom: 8,
+        position: "relative",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "translateY(-2px)";
+        e.currentTarget.style.boxShadow = isDark
+          ? "0 8px 24px rgba(0,0,0,0.4)"
+          : "0 8px 24px rgba(0,0,0,0.12)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = "none";
+      }}
+    >
+      <img
+        src={`http://localhost:8000/wikipedia_scrape/images/${img.filename}`}
+        alt={img.caption || img.title || ""}
+        style={{ width: "100%", display: "block", objectFit: "cover" }}
+        onError={() => setErrored(true)}
+      />
+      {/* zoom hint overlay */}
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "rgba(0,0,0,0)",
+        transition: "background 0.2s",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "rgba(0,0,0,0.28)";
+          e.currentTarget.querySelector("svg").style.opacity = "1";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "rgba(0,0,0,0)";
+          e.currentTarget.querySelector("svg").style.opacity = "0";
+        }}
+      >
+        <svg style={{ width: 28, height: 28, color: "white", opacity: 0, transition: "opacity 0.2s", filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }} fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+          <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+        </svg>
+      </div>
+      {/* caption */}
+      {(img.title || img.caption) && (
+        <div style={{ padding: "7px 10px" }}>
+          {img.title && (
+            <p style={{ fontSize: 11, color: isDark ? "#888680" : "#6B6560", margin: 0, fontWeight: 500, lineHeight: 1.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {img.title}
+            </p>
+          )}
+          {img.caption && (
+            <p style={{ fontSize: 10, color: isDark ? "#555350" : "#9C9690", margin: "2px 0 0", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+              {img.caption}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth < 768 : false);
+  useEffect(() => {
+    const h = () => setMobile(window.innerWidth < 768);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
+  return mobile;
+}
 
 export default function SearchPage() {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState({ text_results: [], image_results: [] });
-  const [loading, setLoading] = useState(false);
+  const [query, setQuery]             = useState("");
+  const [results, setResults]         = useState({ text_results: [], image_results: [] });
+  const [loading, setLoading]         = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
-  const [baseEmbedding, setBaseEmbedding] = useState(null);
-  const [refineText, setRefineText] = useState("");
-  const [refining, setRefining] = useState(false);
-  const [searchHistory, setSearchHistory] = useState([]);
-  const [activeResultIndex, setActiveResultIndex] = useState(null);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [isDark, setIsDark] = useState(false);
+  const [isFocused, setIsFocused]     = useState(false);
+  const [history, setHistory]         = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [isDark, setIsDark]           = useState(false);
+  const [activeTab, setActiveTab]     = useState("text");
+  const [lightboxImg, setLightboxImg] = useState(null);
+  const [refineText, setRefineText]   = useState("");
+  const [refineFocused, setRefineFocused] = useState(false);
+  const [baseQuery, setBaseQuery]     = useState("");   // original query before refinements
+  const [refineHistory, setRefineHistory] = useState([]); // breadcrumb trail
   const resultsRef = useRef(null);
+  const inputRef   = useRef(null);
+  const refineRef  = useRef(null);
+  const isMobile   = useIsMobile();
 
-  // HOOK LAGyera nai garya xa hai check it
+  const BG      = isDark ? "#111110" : "#F7F5F2";
+  const SURFACE = isDark ? "#1C1C1A" : "#FFFFFF";
+  const BORDER  = isDark ? "#2C2C29" : "#E8E4DF";
+  const TEXT    = isDark ? "#EEECE8" : "#1A1916";
+  const MUTED   = isDark ? "#888680" : "#6B6560";
+  const SUBTLE  = isDark ? "#555350" : "#9C9690";
+  const ACCENT  = isDark ? "#4ABA74" : "#1A6B3C";
+  const SOFT    = isDark ? "#1A2E22" : "#EAF3EE";
+  const DIVIDER = isDark ? "#222220" : "#EDEAE6";
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    setIsDark(mq.matches);
+    const h = (e) => setIsDark(e.matches);
+    mq.addEventListener("change", h);
+    return () => mq.removeEventListener("change", h);
+  }, []);
+
+  useEffect(() => {
+    const h = (e) => {
+      if (e.key === "/" && document.activeElement !== inputRef.current) {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
+
+  useEffect(() => {
+    document.body.style.background = BG;
+    document.body.style.margin = "0";
+  }, [BG]);
+
   useEffect(() => {
     if (hasSearched && resultsRef.current) {
-      setTimeout(() => {
-        resultsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
+      setTimeout(() => resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     }
   }, [hasSearched]);
 
-  // TEXT SEARCH
-  const performSearch = async (q = query) => {
-    if (!q.trim()) return;
+  const performSearch = useCallback(async (q = query) => {
+    const trimmed = q.trim();
+    if (!trimmed) return;
     setLoading(true);
     setHasSearched(true);
-    setSearchHistory(prev => [q, ...prev.filter(item => item !== q).slice(0, 4)]);
-
+    setShowHistory(false);
+    setActiveTab("text");
+    setBaseQuery(trimmed);
+    setRefineHistory([trimmed]);
+    setRefineText("");
+    setHistory(prev => [trimmed, ...prev.filter(x => x !== trimmed).slice(0, 7)]);
     try {
-      const res = await axios.get(`http://localhost:8000/search?q=${encodeURIComponent(q)}`);
+      const res = await axios.get(`http://localhost:8000/search?q=${encodeURIComponent(trimmed)}`);
       setResults(res.data);
-      setBaseEmbedding(res.data.embedding);
-    } catch (err) {
-      console.error("Search failed:", err);
+    } catch {
+      setResults({ text_results: [], image_results: [] });
     } finally {
       setLoading(false);
     }
-  };
+  }, [query]);
 
-  // IMAGE SEARCH
   const handleImageUpload = async (file) => {
     if (!file) return;
     setLoading(true);
     setHasSearched(true);
     setQuery(`Image: ${file.name}`);
-
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await axios.post(
-        "http://localhost:8000/search/image/unified",
-        formData
-      );
-
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await axios.post("http://localhost:8000/search/image/unified", fd);
       setResults(res.data);
-      setBaseEmbedding(res.data.embedding);
-    } catch (err) {
-      console.error("Image search failed:", err);
+    } catch {
+      setResults({ text_results: [], image_results: [] });
     } finally {
       setLoading(false);
     }
   };
 
-  // REFINE
-  const handleRefine = async () => {
-    if (!refineText.trim() || !baseEmbedding) return;
-    setRefining(true);
-    setSearchHistory(prev => [`${query} → ${refineText}`, ...prev.slice(0, 4)]);
+  const reset = () => {
+    setHasSearched(false);
+    setQuery("");
+    setResults({ text_results: [], image_results: [] });
+    setRefineText("");
+    setRefineHistory([]);
+    setBaseQuery("");
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
 
+  const performRefine = async () => {
+    const constraint = refineText.trim();
+    if (!constraint) return;
+    setRefineHistory(prev => [...prev, constraint]);
+    setRefineText("");
+    setLoading(true);
+    setActiveTab("text");
     try {
-      // Fade out existing results
-      setResults(prev => ({
-        text_results: prev.text_results.map(r => ({ ...r, _fading: true })),
-        image_results: prev.image_results.map(r => ({ ...r, _fading: true }))
-      }));
-
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      const data = await refineSearch(baseEmbedding, refineText);
-      
-      setResults(data);
-      setBaseEmbedding(data.embedding);
-      setQuery(prev => `${prev} → ${refineText}`);
-      setRefineText("");
+      // POST current results + constraint to /refine
+      // Backend re-ranks using CrossEncoder (text) and CLIP zero-shot (images)
+      // No new FAISS search — just intelligent re-ranking of what we already have
+      const res = await axios.post("http://localhost:8000/refine", {
+        text_results:   results.text_results,
+        image_results:  results.image_results,
+        original_query: baseQuery,
+        constraint:     constraint,
+        k:              10,
+      });
+      setResults(res.data);
     } catch (err) {
       console.error("Refinement failed:", err);
     } finally {
-      setTimeout(() => setRefining(false), 400);
+      setLoading(false);
     }
   };
 
-  const totalResults = results.text_results?.length + results.image_results?.length || 0;
+  const textCount  = results.text_results?.length  ?? 0;
+  const imageCount = results.image_results?.length ?? 0;
+
+  const renderSearchBar = (compact) => (
+    <div style={{
+      display: "flex", alignItems: "center",
+      background: SURFACE,
+      border: `1.5px solid ${isFocused ? ACCENT : BORDER}`,
+      borderRadius: compact ? 24 : 16,
+      padding: compact ? "0 12px" : "0 16px",
+      height: compact ? 40 : 52,
+      boxShadow: isFocused
+        ? `0 0 0 ${compact ? 3 : 4}px ${SOFT}`
+        : compact ? "none" : `0 2px 12px rgba(0,0,0,${isDark ? 0.3 : 0.06})`,
+      transition: "border-color 0.15s, box-shadow 0.2s",
+    }}>
+      <svg style={{ width: compact ? 15 : 17, height: compact ? 15 : 17, color: isFocused ? ACCENT : SUBTLE, flexShrink: 0, transition: "color 0.15s" }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+      <input
+        ref={inputRef}
+        value={query}
+        onChange={(e) => { setQuery(e.target.value); setShowHistory(true); }}
+        onKeyDown={(e) => { if (e.key === "Enter") performSearch(); if (e.key === "Escape") { setShowHistory(false); inputRef.current?.blur(); } }}
+        onFocus={() => { setIsFocused(true); setShowHistory(true); }}
+        onBlur={() => { setIsFocused(false); setTimeout(() => setShowHistory(false), 150); }}
+        placeholder={compact ? "Search…" : "Search anything..."}
+        style={{
+          flex: 1, border: "none", outline: "none",
+          background: "transparent",
+          fontSize: compact ? 14 : 16,
+          color: TEXT, padding: `0 ${compact ? 10 : 14}px`,
+          fontFamily: "inherit",
+        }}
+      />
+      {query && (
+        <button onClick={() => setQuery("")} style={{ background: "none", border: "none", cursor: "pointer", color: SUBTLE, display: "flex", padding: 4, marginRight: compact ? 4 : 6 }}>
+          <svg style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+      <div style={{ width: 1, height: 18, background: BORDER, margin: `0 ${compact ? 8 : 12}px`, flexShrink: 0 }} />
+      <label style={{ cursor: "pointer", display: "flex", flexShrink: 0 }} title="Search by image">
+        <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handleImageUpload(e.target.files[0])} />
+        <svg style={{ width: compact ? 15 : 17, height: compact ? 15 : 17, color: SUBTLE, transition: "color 0.15s" }}
+          onMouseEnter={(e) => e.currentTarget.style.color = ACCENT}
+          onMouseLeave={(e) => e.currentTarget.style.color = SUBTLE}
+          fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+        </svg>
+      </label>
+      {!compact && (
+        <button
+          onClick={() => performSearch()}
+          disabled={!query.trim()}
+          style={{
+            marginLeft: 10, padding: "8px 18px",
+            background: query.trim() ? ACCENT : BORDER,
+            color: query.trim() ? (isDark ? "#0f0d0b" : "#fff") : SUBTLE,
+            border: "none", borderRadius: 10,
+            fontSize: 13, fontFamily: "inherit", fontWeight: 500,
+            cursor: query.trim() ? "pointer" : "not-allowed",
+            transition: "all 0.15s", flexShrink: 0,
+          }}
+        >
+          Search
+        </button>
+      )}
+    </div>
+  );
+
+  const renderHistory = () => showHistory && history.length > 0 ? (
+    <div style={{
+      position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0,
+      background: SURFACE, border: `1px solid ${BORDER}`,
+      borderRadius: 12, overflow: "hidden", zIndex: 200,
+      boxShadow: isDark ? "0 8px 32px rgba(0,0,0,0.5)" : "0 8px 32px rgba(0,0,0,0.1)",
+    }}>
+      <div style={{ padding: "10px 14px 4px", fontSize: 10, color: SUBTLE, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+        Recent
+      </div>
+      {history.slice(0, 5).map((h, i) => (
+        <button key={i} onMouseDown={() => { setQuery(h); performSearch(h); }}
+          style={{ width: "100%", textAlign: "left", border: "none", cursor: "pointer", padding: "9px 14px", background: "none", display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: MUTED, fontFamily: "inherit", transition: "background 0.1s" }}
+          onMouseEnter={(e) => e.currentTarget.style.background = DIVIDER}
+          onMouseLeave={(e) => e.currentTarget.style.background = "none"}
+        >
+          <svg style={{ width: 12, height: 12, color: SUBTLE, flexShrink: 0 }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {h}
+        </button>
+      ))}
+    </div>
+  ) : null;
 
   return (
-    <div className={`min-h-screen transition-all duration-1000 ${
-      isDark 
-        ? "bg-gradient-to-br from-slate-950 via-indigo-950/30 to-violet-950/30 text-slate-100" 
-        : "bg-gradient-to-br from-slate-50 via-indigo-50/20 to-violet-50/30 text-slate-900"
-    } selection:bg-indigo-500/30 ${!hasSearched ? "flex flex-col items-center justify-center" : "pt-6 pb-20"}`}>
-      
-      {/* Animated background elements */}
-      <div className={`fixed inset-0 -z-10 pointer-events-none transition-opacity duration-1000 ${isDark ? "opacity-[0.03]" : "opacity-[0.02]"}`}>
-        <div className="absolute inset-0" style={{
-          backgroundImage: `linear-gradient(to right, ${isDark ? '#818cf8' : '#6366f1'} 1px, transparent 1px), linear-gradient(to bottom, ${isDark ? '#818cf8' : '#6366f1'} 1px, transparent 1px)`,
-          backgroundSize: '80px 80px'
-        }}></div>
-      </div>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@1,300;1,400&display=swap');
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; -webkit-font-smoothing: antialiased; }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin { animation: spin 0.8s linear infinite; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { border-radius: 3px; background: #ccc; }
+      `}</style>
 
-      {/* Floating ambient orbs */}
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className={`absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl animate-pulse ${isDark ? "bg-indigo-500/20" : "bg-indigo-300/10"}`}></div>
-        <div className={`absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full blur-3xl animate-pulse ${isDark ? "bg-violet-500/20" : "bg-violet-300/10"}`} style={{ animationDelay: '1s' }}></div>
-      </div>
+      <div style={{ minHeight: "100vh", background: BG, color: TEXT, fontFamily: "'Inter', -apple-system, sans-serif", transition: "background 0.3s, color 0.3s" }}>
 
-      {/* Theme Toggle Button */}
-      <button
-        onClick={() => setIsDark(!isDark)}
-        className={`fixed top-6 right-6 z-50 p-4 rounded-full transition-all duration-500 backdrop-blur-xl border shadow-lg hover:scale-110 active:scale-95 group ${
-          isDark 
-            ? "bg-slate-800/80 border-slate-700/50 text-amber-400 hover:shadow-amber-500/20" 
-            : "bg-white/80 border-slate-200/50 text-slate-600 hover:shadow-indigo-200/50"
-        }`}
-        aria-label="Toggle theme"
-      >
-        {isDark ? (
-          <svg className="h-5 w-5 rotate-0 transition-transform duration-500 group-hover:rotate-180" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-          </svg>
-        ) : (
-          <svg className="h-5 w-5 rotate-0 transition-transform duration-500 group-hover:-rotate-45" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-          </svg>
-        )}
-      </button>
+        {/* ── HERO ── */}
+        {!hasSearched && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "0 20px" }}>
+            {/* theme toggle */}
+            <button onClick={() => setIsDark(d => !d)} style={{ position: "fixed", top: 16, right: 16, zIndex: 50, background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: MUTED, display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontFamily: "inherit" }}>
+              {isDark
+                ? <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                : <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+              }
+              {isDark ? "Light" : "Dark"}
+            </button>
 
-      {/* HEADER SECTION */}
-      <section className={`w-full max-w-7xl mx-auto px-6 transition-all duration-1000 ease-[cubic-bezier(0.23,1,0.32,1)] ${hasSearched ? "mb-8 flex flex-col md:flex-row items-center gap-8" : "text-center"}`}>
-        
-        {/* Logo */}
-        <div 
-          onClick={() => { 
-            setHasSearched(false); 
-            setQuery(""); 
-            setResults({ text_results: [], image_results: [] }); 
-            setBaseEmbedding(null);
-          }}
-          className={`group cursor-pointer transition-all duration-1000 select-none relative ${hasSearched ? "" : "mb-12"}`}
-        >
-          <h1 className={`font-black tracking-tighter transition-all duration-1000
-            ${hasSearched 
-              ? "text-4xl md:text-5xl bg-gradient-to-br from-indigo-400 via-violet-400 to-fuchsia-400 bg-clip-text text-transparent" 
-              : isDark
-                ? "text-7xl sm:text-8xl md:text-9xl lg:text-[12rem] leading-none text-slate-100"
-                : "text-7xl sm:text-8xl md:text-9xl lg:text-[12rem] leading-none text-slate-900"}`}
-          >
-            NEXUS
-            <span className={`inline-block transition-all duration-500 ${hasSearched ? "text-indigo-400" : isDark ? "text-indigo-400 group-hover:scale-125 group-hover:rotate-180" : "text-indigo-600 group-hover:scale-125 group-hover:rotate-180"}`}>.</span>
-          </h1>
-          {!hasSearched && (
-            <p className={`text-sm md:text-base mt-4 tracking-wide animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300 ${isDark ? "text-slate-500" : "text-slate-400"}`}>
-              Next-generation semantic search
-            </p>
-          )}
-        </div>
-
-        {/* Search Bar */}
-        <div className={`relative w-full transition-all duration-1000 ${hasSearched ? "max-w-3xl" : "max-w-2xl mx-auto"}`}>
-          {/* Glow effect on focus */}
-          <div className={`absolute -inset-2 bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 rounded-[3rem] blur-2xl transition-all duration-1000 ${isFocused ? "opacity-25 scale-105" : "opacity-0 scale-95"}`}></div>
-          
-          {/* Search container */}
-          <div className={`relative flex items-center backdrop-blur-xl border rounded-[2.5rem] p-2 md:p-3 transition-all duration-500 ${
-            isDark
-              ? isFocused 
-                ? "bg-slate-800/80 border-indigo-500 shadow-2xl shadow-indigo-500/20"
-                : "bg-slate-800/60 border-slate-700/50 shadow-xl shadow-slate-900/30"
-              : isFocused
-                ? "bg-white/80 border-indigo-400 shadow-2xl shadow-indigo-200/50"
-                : "bg-white/80 border-slate-200/50 shadow-xl shadow-slate-200/30"
-          }`}>
-            
-            {/* Search icon */}
-            <div className={`pl-3 md:pl-4 transition-all duration-300 ${isFocused ? isDark ? "text-indigo-400 scale-110" : "text-indigo-600 scale-110" : isDark ? "text-slate-500" : "text-slate-400"}`}>
-              <svg fill="none" className="h-5 w-5 md:h-6 md:w-6" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+            {/* wordmark */}
+            <div style={{ textAlign: "center", marginBottom: 44 }}>
+              <h1 style={{ fontSize: "clamp(60px, 15vw, 110px)", fontWeight: 300, fontStyle: "italic", color: TEXT, letterSpacing: "-0.03em", lineHeight: 0.92, marginBottom: 16, fontFamily: "'Playfair Display', Georgia, serif" }}>
+                Nexus
+              </h1>
+              <p style={{ fontSize: 11, color: SUBTLE, fontWeight: 400, letterSpacing: "0.22em", textTransform: "uppercase" }}>
+                Semantic · Multimodal · Search
+              </p>
             </div>
-            
-            {/* Input field */}
-            <input
-              type="text"
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && performSearch()}
-              placeholder="Ask anything..."
-              className={`w-full px-3 md:px-5 py-2 md:py-3 text-lg md:text-xl bg-transparent outline-none font-medium ${
-                isDark 
-                  ? "placeholder:text-slate-600 text-slate-100" 
-                  : "placeholder:text-slate-300 text-slate-900"
-              }`}
-            />
-            
-            {/* Clear button */}
-            {query && !loading && (
-              <button
-                onClick={() => setQuery("")}
-                className={`mr-2 p-2 rounded-full transition-all duration-200 animate-in zoom-in-50 ${
-                  isDark
-                    ? "text-slate-500 hover:text-slate-300 hover:bg-slate-700"
-                    : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-            
-            {/* Image upload button */}
-            <label className="flex items-center px-1 md:px-2 cursor-pointer group/cam relative">
-              <input 
-                type="file" 
-                accept="image/*" 
-                className="hidden" 
-                onChange={(e) => handleImageUpload(e.target.files[0])} 
-              />
-              <div className={`p-3 md:p-4 rounded-full transition-all duration-300 group-hover/cam:scale-110 group-hover/cam:shadow-lg ${
-                isDark
-                  ? "bg-slate-700 text-slate-400 group-hover/cam:bg-gradient-to-br group-hover/cam:from-indigo-600 group-hover/cam:to-violet-600 group-hover/cam:text-white group-hover/cam:shadow-indigo-500/20"
-                  : "bg-slate-50 text-slate-500 group-hover/cam:bg-gradient-to-br group-hover/cam:from-indigo-600 group-hover/cam:to-violet-600 group-hover/cam:text-white group-hover/cam:shadow-indigo-200"
-              }`}>
-                <svg className="h-4 w-4 md:h-5 md:w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                </svg>
-              </div>
-              <span className={`absolute -bottom-8 right-0 text-[10px] opacity-0 group-hover/cam:opacity-100 transition-opacity whitespace-nowrap ${isDark ? "text-slate-500" : "text-slate-400"}`}>
-                Upload image
-              </span>
-            </label>
-          </div>
 
-          {/* Recent search history */}
-          {!hasSearched && searchHistory.length > 0 && (
-            <div className={`absolute top-full mt-4 w-full backdrop-blur-xl rounded-2xl shadow-xl border p-4 animate-in fade-in slide-in-from-top-2 duration-300 z-10 ${
-              isDark
-                ? "bg-slate-800/90 border-slate-700/50"
-                : "bg-white/90 border-slate-200/50"
-            }`}>
-              <p className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? "text-slate-500" : "text-slate-400"}`}>Recent searches</p>
-              <div className="space-y-2">
-                {searchHistory.map((hist, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => { 
-                      const searchQuery = hist.split(' → ')[0];
-                      setQuery(searchQuery); 
-                      performSearch(searchQuery); 
-                    }}
-                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors text-sm flex items-center gap-2 group ${
-                      isDark
-                        ? "text-slate-400 hover:bg-slate-700 hover:text-indigo-400"
-                        : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-600"
-                    }`}
-                  >
-                    <svg className={`h-3 w-3 transition-colors ${isDark ? "text-slate-600 group-hover:text-indigo-400" : "text-slate-300 group-hover:text-indigo-400"}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span className="truncate">{hist}</span>
+            {/* search box */}
+            <div style={{ width: "100%", maxWidth: 560, position: "relative" }}>
+              {renderSearchBar(false)}
+              {renderHistory()}
+              <p style={{ textAlign: "center", marginTop: 14, fontSize: 12, color: SUBTLE }}>
+                Press <kbd style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 4, padding: "1px 6px", fontSize: 11, fontFamily: "inherit" }}>/</kbd> to focus · or upload an image
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ── STICKY HEADER ── */}
+        {hasSearched && (
+          <header style={{ position: "sticky", top: 0, zIndex: 100, background: BG, borderBottom: `1px solid ${BORDER}` }}>
+            <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", gap: isMobile ? 10 : 20, height: isMobile ? 56 : 60, padding: `0 ${isMobile ? 14 : 24}px` }}>
+              <button onClick={reset} style={{ background: "none", border: "none", cursor: "pointer", fontSize: isMobile ? 20 : 24, fontWeight: 300, fontStyle: "italic", color: ACCENT, letterSpacing: "-0.02em", padding: 0, flexShrink: 0, fontFamily: "'Playfair Display', Georgia, serif" }}>
+                Nexus
+              </button>
+              <div style={{ flex: 1, maxWidth: isMobile ? "none" : 580, position: "relative" }}>
+                {renderSearchBar(true)}
+                {renderHistory()}
+              </div>
+              {!isMobile && (
+                <button onClick={() => setIsDark(d => !d)} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: MUTED, display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontFamily: "inherit", flexShrink: 0 }}>
+                  {isDark
+                    ? <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                    : <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                  }
+                  {isDark ? "Light" : "Dark"}
+                </button>
+              )}
+            </div>
+
+            {/* mobile tabs */}
+            {isMobile && imageCount > 0 && (
+              <div style={{ display: "flex", borderTop: `1px solid ${DIVIDER}` }}>
+                {["text", "images"].map(tab => (
+                  <button key={tab} onClick={() => setActiveTab(tab)} style={{ flex: 1, padding: "10px 0", background: "none", border: "none", borderBottom: `2px solid ${activeTab === tab ? ACCENT : "transparent"}`, color: activeTab === tab ? ACCENT : SUBTLE, fontSize: 13, fontWeight: activeTab === tab ? 500 : 400, cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize", transition: "color 0.15s" }}>
+                    {tab} ({tab === "text" ? textCount : imageCount})
                   </button>
                 ))}
               </div>
-            </div>
-          )}
-        </div>
-      </section>
+            )}
+          </header>
+        )}
 
-      {/* RESULTS AREA */}
-      {hasSearched && (
-        <main ref={resultsRef} className="w-full max-w-[1400px] mx-auto px-4 md:px-6 lg:px-12 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-          
-          {/* Results header with stats */}
-          <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-4 flex-wrap">
-              <div className={`px-4 py-2 backdrop-blur-sm rounded-full border shadow-sm ${
-                isDark
-                  ? "bg-slate-800/60 border-slate-700/50"
-                  : "bg-white/60 border-slate-200/50"
-              }`}>
-                <span className={`text-sm font-semibold ${isDark ? "text-slate-300" : "text-slate-600"}`}>
-                  <span className={`font-bold ${isDark ? "text-indigo-400" : "text-indigo-600"}`}>{totalResults}</span> {totalResults === 1 ? 'result' : 'results'} found
-                </span>
-              </div>
-              {refining && (
-                <div className={`flex items-center gap-2 px-4 py-2 rounded-full border animate-in slide-in-from-left duration-300 ${
-                  isDark
-                    ? "bg-amber-900/30 border-amber-700/50"
-                    : "bg-amber-50 border-amber-200"
-                }`}>
-                  <div className={`w-2 h-2 rounded-full animate-pulse ${isDark ? "bg-amber-400" : "bg-amber-500"}`}></div>
-                  <span className={`text-xs font-semibold ${isDark ? "text-amber-400" : "text-amber-700"}`}>Refining context...</span>
-                </div>
-              )}
-            </div>
-          </div>
+        {/* ── RESULTS ── */}
+        {hasSearched && !loading && (
+          <div ref={resultsRef} style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "16px 16px 80px" : "28px 24px 80px" }}>
+            <p style={{ fontSize: 13, color: SUBTLE, marginBottom: isMobile ? 14 : 22 }}>
+              {textCount + imageCount} results for <span style={{ color: MUTED, fontWeight: 500 }}>"{query}"</span>
+            </p>
 
-          {/* Refinement Input */}
-          {baseEmbedding && (
-            <div className={`mb-12 max-w-2xl mx-auto transition-all duration-500 ${refining ? "scale-[0.98] opacity-70" : "scale-100 opacity-100"}`}>
-              <div className="relative">
-                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-[2rem] blur-xl opacity-20"></div>
-                <div className={`relative flex items-center p-1.5 rounded-[1.75rem] border shadow-lg backdrop-blur-sm ${
-                  isDark
-                    ? "bg-gradient-to-br from-slate-800 to-slate-900 border-indigo-500/50"
-                    : "bg-gradient-to-br from-indigo-50 to-violet-50 border-indigo-200/50"
-                }`}>
-                  <div className={isDark ? "pl-4 text-indigo-400" : "pl-4 text-indigo-400"}>
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Refine your search (e.g., 'more technical', 'recent only')"
-                    value={refineText}
-                    onChange={(e) => setRefineText(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleRefine()}
-                    disabled={refining}
-                    className={`w-full px-4 py-3 bg-transparent outline-none text-sm font-medium disabled:opacity-50 ${
-                      isDark
-                        ? "text-slate-100 placeholder:text-slate-600"
-                        : "text-indigo-900 placeholder:text-indigo-300/70"
-                    }`}
-                  />
-                  <button
-                    onClick={handleRefine}
-                    disabled={!refineText.trim() || refining}
-                    className={`bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-6 py-3 rounded-xl text-sm font-bold hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 whitespace-nowrap ${
-                      isDark ? "hover:shadow-indigo-500/20" : "hover:shadow-indigo-200"
-                    }`}
-                  >
-                    {refining ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        <span>Refining</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Refine</span>
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                          <path d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                        </svg>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-              <p className={`text-xs text-center mt-3 animate-in fade-in duration-500 delay-200 ${isDark ? "text-slate-500" : "text-slate-400"}`}>
-                
-              </p>
-            </div>
-          )}
-
-          {/* Results Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16">
-            
-            {/* TEXT RESULTS COLUMN */}
-            <div className="lg:col-span-7 space-y-8">
-              <header className="flex items-center gap-4 mb-6">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full animate-pulse ${isDark ? "bg-indigo-400" : "bg-indigo-600"}`}></div>
-                  <span className={`text-xs font-bold uppercase tracking-[0.3em] ${isDark ? "text-slate-500" : "text-slate-400"}`}>Knowledge</span>
-                </div>
-                <div className={`h-px flex-1 bg-gradient-to-r to-transparent ${isDark ? "from-slate-700" : "from-slate-200"}`}></div>
-              </header>
-
-              {results.text_results?.length === 0 && !loading && (
-                <div className={`py-32 text-center border-2 border-dashed rounded-[3rem] backdrop-blur-sm ${
-                  isDark
-                    ? "border-slate-700/50 bg-slate-800/30"
-                    : "border-slate-200/50 bg-white/30"
-                }`}>
-                  <div className={`w-16 h-16 mx-auto mb-4 ${isDark ? "text-slate-700" : "text-slate-200"}`}>
-                    <svg fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                      <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </div>
-                  <p className={`italic text-sm ${isDark ? "text-slate-600" : "text-slate-300"}`}>No text results found</p>
-                </div>
-              )}
-
-              {results.text_results?.map((item, idx) => (
-                <article 
-                  key={idx} 
-                  onMouseEnter={() => setActiveResultIndex(idx)}
-                  onMouseLeave={() => setActiveResultIndex(null)}
-                  className={`group relative transition-all duration-500 ${item._fading ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}
-                  style={{ animationDelay: `${idx * 50}ms` }}
-                >
-                  {/* Hover background */}
-                  <div className={`absolute -inset-4 z-0 rounded-[2rem] scale-95 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-500 shadow-xl ${
-                    isDark
-                      ? "bg-gradient-to-br from-slate-800 to-indigo-900/20 shadow-slate-900/50"
-                      : "bg-gradient-to-br from-white to-indigo-50/30 shadow-slate-200/50"
-                  }`}></div>
-                  
-                  {/* Active indicator */}
-                  <div className={`absolute -left-6 top-1/2 -translate-y-1/2 w-1 h-12 bg-gradient-to-b from-indigo-600 to-violet-600 rounded-full transition-all duration-300 ${activeResultIndex === idx ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}></div>
-                  
-                  <div className="relative z-10 p-6">
-                    {/* Source badge */}
-                    <div className="flex items-center gap-3 mb-4 flex-wrap">
-                      <span className={`px-3 py-1.5 text-[10px] font-bold rounded-lg uppercase tracking-tight shadow-sm ${
-                        isDark
-                          ? "bg-gradient-to-r from-indigo-900/50 to-violet-900/50 text-indigo-300"
-                          : "bg-gradient-to-r from-indigo-100 to-violet-100 text-indigo-700"
-                      }`}>
-                        Source {idx + 1}
-                      </span>
-                      {item.url && (
-                        <a 
-                          href={item.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className={`text-xs font-mono truncate max-w-xs transition-colors flex items-center gap-1 group/link ${
-                            isDark
-                              ? "text-slate-600 hover:text-indigo-400"
-                              : "text-slate-400 hover:text-indigo-600"
-                          }`}
-                        >
-                          <svg className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-opacity" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                            <path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                          <span className="truncate">{item.url}</span>
-                        </a>
-                      )}
-                      {item.section && (
-                        <span className={`px-2.5 py-1 text-[10px] font-semibold rounded-full ${
-                          isDark
-                            ? "bg-slate-800 text-slate-400 border border-slate-700/70"
-                            : "bg-slate-100 text-slate-500 border border-slate-200"
-                        }`}>
-                          {item.section}
-                        </span>
-                      )}
-                    </div>
-                    
-                    {/* Title */}
-                    <a 
-                      href={item.url || '#'} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="block transition-colors duration-300"
-                    >
-                      <h3 className={`text-2xl md:text-3xl font-bold tracking-tight mb-4 leading-[1.15] bg-gradient-to-br bg-clip-text transition-all duration-300 ${
-                        isDark
-                          ? "from-slate-100 to-slate-300 group-hover:from-indigo-400 group-hover:to-violet-400"
-                          : "from-slate-900 to-slate-700 group-hover:from-indigo-600 group-hover:to-violet-600"
-                      }`}>
-                        {item.title}
-                      </h3>
-                    </a>
-                    
-                    {/* Preview text */}
-                    <p className={`text-base md:text-lg leading-relaxed font-light ${isDark ? "text-slate-400" : "text-slate-600"}`}>
-                      {item.text?.substring(0, 280) || ''}
-                      {item.text?.length > 280 && <span className={isDark ? "text-indigo-500" : "text-indigo-300"}>...</span>}
-                    </p>
-                    
-                    {/* Read more link */}
-                    {item.url && (
-                      <a 
-                        href={item.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`inline-flex items-center gap-2 mt-4 text-sm font-semibold transition-colors group/read ${
-                          isDark
-                            ? "text-indigo-400 hover:text-violet-400"
-                            : "text-indigo-600 hover:text-violet-600"
-                        }`}
-                      >
-                        <span>Read full article</span>
-                        <svg className="h-4 w-4 group-hover/read:translate-x-1 transition-transform" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                          <path d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                        </svg>
-                      </a>
-                    )}
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            {/* VISUAL COLUMN */}
-            <div className="lg:col-span-5">
-              <div className="lg:sticky lg:top-8">
-                <header className="flex items-center gap-4 mb-8">
-                  <div className={`h-px flex-1 bg-gradient-to-r from-transparent ${isDark ? "to-slate-700" : "to-slate-200"}`}></div>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs font-bold uppercase tracking-[0.3em] ${isDark ? "text-slate-500" : "text-slate-400"}`}>Visuals</span>
-                    <div className={`w-2 h-2 rounded-full animate-pulse ${isDark ? "bg-violet-400" : "bg-violet-600"}`} style={{ animationDelay: '0.5s' }}></div>
-                  </div>
-                </header>
-
-                {results.image_results?.length === 0 && !loading && (
-                  <div className={`py-32 text-center border-2 border-dashed rounded-[3rem] backdrop-blur-sm ${
-                    isDark
-                      ? "border-slate-700/50 bg-slate-800/30"
-                      : "border-slate-200/50 bg-white/30"
-                  }`}>
-                    <div className={`w-16 h-16 mx-auto mb-4 ${isDark ? "text-slate-700" : "text-slate-200"}`}>
-                      <svg fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                        <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <p className={`italic text-sm ${isDark ? "text-slate-600" : "text-slate-300"}`}>No images found</p>
-                  </div>
+            {/* mobile: tabbed */}
+            {isMobile ? (
+              <div>
+                {activeTab === "text" && (
+                  textCount === 0
+                    ? <p style={{ padding: "40px 0", textAlign: "center", color: SUBTLE, fontSize: 14 }}>No text results</p>
+                    : results.text_results.map((item, idx) => <TextCard key={idx} item={item} idx={idx} isDark={isDark} />)
                 )}
-
-                <div className="columns-1 sm:columns-2 gap-4 space-y-4">
-                  {results.image_results?.map((img, i) => (
-                    <div 
-                      key={i} 
-                      onClick={() => setSelectedImage(img)}
-                      className={`break-inside-avoid group relative rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-500 cursor-pointer ${
-                        img._fading ? 'opacity-0 scale-90' : 'opacity-100 scale-100'
-                      } ${
-                        isDark
-                          ? "bg-slate-800 hover:shadow-indigo-500/20"
-                          : "bg-slate-100 hover:shadow-indigo-200/50"
-                      }`}
-                      style={{ animationDelay: `${i * 75}ms` }}
-                    >
-                      {/* Image */}
-                      <img 
-                        src={`http://localhost:8000/wikipedia_scrape/images/${img.filename}`} 
-                        alt={img.caption || img.title}
-                        className="w-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:brightness-110" 
-                        loading="lazy"
-                      />
-                      
-                      {/* Overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-4">
-                        <p className="text-white text-xs font-bold uppercase tracking-wider leading-tight transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                          {img.title}
-                        </p>
-                        {img.caption && (
-                          <p className="text-white/80 text-[10px] mt-1 leading-tight transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500 delay-75">
-                            {img.caption.substring(0, 100)}{img.caption.length > 100 && '...'}
-                          </p>
-                        )}
+                {activeTab === "images" && (
+                  imageCount === 0
+                    ? <p style={{ padding: "40px 0", textAlign: "center", color: SUBTLE, fontSize: 14 }}>No images</p>
+                    : <div style={{ columns: 2, columnGap: 8 }}>
+                        {results.image_results.map((img, i) => <ImageCard key={i} img={img} isDark={isDark} onOpen={setLightboxImg} />)}
                       </div>
-                      
-                      {/* Zoom icon */}
-                      <div className={`absolute top-3 right-3 w-8 h-8 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:scale-110 ${
-                        isDark
-                          ? "bg-slate-900/80 text-indigo-400"
-                          : "bg-white/90 text-indigo-600"
-                      }`}>
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                          <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                )}
               </div>
-            </div>
-          </div>
-        </main>
-      )}
-
-      {/* IMAGE MODAL */}
-      {selectedImage && (
-        <div 
-          className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300"
-          onClick={() => setSelectedImage(null)}
-        >
-          <button 
-            className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-all duration-200 hover:scale-110"
-            onClick={() => setSelectedImage(null)}
-          >
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          <div className="max-w-5xl max-h-[90vh] animate-in zoom-in-95 duration-300">
-            <img 
-              src={`http://localhost:8000/wikipedia_scrape/images/${selectedImage.filename}`}
-              alt={selectedImage.caption || selectedImage.title}
-              className="max-h-[90vh] w-auto rounded-2xl shadow-2xl"
-            />
-            {selectedImage.title && (
-              <div className="mt-4 text-center">
-                <h3 className="text-white text-xl font-bold mb-2">{selectedImage.title}</h3>
-                {selectedImage.caption && (
-                  <p className="text-white/70 text-sm">{selectedImage.caption}</p>
+            ) : (
+              /* desktop: two columns */
+              <div style={{ display: "grid", gridTemplateColumns: imageCount > 0 ? "1fr 300px" : "1fr", gap: "0 56px", alignItems: "start" }}>
+                <div style={{ maxWidth: 660 }}>
+                  {textCount === 0
+                    ? <p style={{ padding: "48px 0", textAlign: "center", color: SUBTLE, fontSize: 14 }}>No text results</p>
+                    : results.text_results.map((item, idx) => <TextCard key={idx} item={item} idx={idx} isDark={isDark} />)
+                  }
+                </div>
+                {imageCount > 0 && (
+                  <div style={{ position: "sticky", top: 80 }}>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: SUBTLE, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 14 }}>Images</p>
+                    <div style={{ columns: 2, columnGap: 8 }}>
+                      {results.image_results.map((img, i) => <ImageCard key={i} img={img} isDark={isDark} onOpen={setLightboxImg} />)}
+                    </div>
+                  </div>
                 )}
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ENHANCED LOADING OVERLAY */}
-      {(loading || refining) && (
-        <div className={`fixed inset-0 backdrop-blur-2xl z-[100] flex flex-col items-center justify-center transition-all animate-in fade-in duration-500 ${
-          isDark ? "bg-slate-950/90" : "bg-white/90"
-        }`}>
-          {/* Animated loader */}
-          <div className="relative">
-            {/* Outer ring */}
-            <div className={`w-32 h-32 rounded-full border-2 animate-ping opacity-20 ${isDark ? "border-indigo-500" : "border-indigo-100"}`}></div>
-            
-            {/* Middle ring */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className={`w-24 h-24 rounded-full border-4 border-transparent animate-spin ${
-                isDark
-                  ? "border-t-indigo-400 border-r-violet-400"
-                  : "border-t-indigo-600 border-r-violet-600"
-              }`}></div>
-            </div>
-            
-            {/* Inner pulse */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className={`w-6 h-6 bg-gradient-to-br rounded-full animate-pulse ${
-                isDark
-                  ? "from-indigo-400 to-violet-400 shadow-[0_0_30px_rgba(129,140,248,0.6)]"
-                  : "from-indigo-600 to-violet-600 shadow-[0_0_30px_rgba(79,70,229,0.6)]"
-              }`}></div>
+        {/* ── REFINE PANEL ── */}
+        {hasSearched && !loading && (
+          <div style={{
+            position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50,
+            background: isDark ? "rgba(17,17,16,0.96)" : "rgba(247,245,242,0.96)",
+            backdropFilter: "blur(12px)",
+            borderTop: `1px solid ${BORDER}`,
+            padding: isMobile ? "12px 16px" : "14px 24px",
+          }}>
+            <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+
+              {/* breadcrumb trail */}
+              {refineHistory.length > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+                  {refineHistory.map((crumb, i) => (
+                    <span key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      {i > 0 && (
+                        <svg style={{ width: 12, height: 12, color: SUBTLE, flexShrink: 0 }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path d="M9 5l7 7-7 7" />
+                        </svg>
+                      )}
+                      <span style={{
+                        fontSize: 12, color: i === refineHistory.length - 1 ? ACCENT : MUTED,
+                        background: i === refineHistory.length - 1 ? SOFT : "transparent",
+                        padding: i === refineHistory.length - 1 ? "2px 8px" : "2px 0",
+                        borderRadius: 20,
+                        fontWeight: i === refineHistory.length - 1 ? 500 : 400,
+                      }}>
+                        {crumb}
+                      </span>
+                    </span>
+                  ))}
+                  {refineHistory.length > 1 && (
+                    <button
+                      onClick={() => {
+                        setRefineHistory([baseQuery]);
+                        setQuery(baseQuery);
+                        performSearch(baseQuery);
+                      }}
+                      style={{ marginLeft: 4, fontSize: 11, color: SUBTLE, background: "none", border: "none", cursor: "pointer", padding: "2px 6px", borderRadius: 4, fontFamily: "inherit" }}
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* refine input row */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{
+                  flex: 1, display: "flex", alignItems: "center",
+                  background: SURFACE,
+                  border: `1.5px solid ${refineFocused ? ACCENT : BORDER}`,
+                  borderRadius: 24, padding: "0 14px", height: 40,
+                  boxShadow: refineFocused ? `0 0 0 3px ${SOFT}` : "none",
+                  transition: "border-color 0.15s, box-shadow 0.2s",
+                }}>
+                  {/* sparkle icon */}
+                  <svg style={{ width: 14, height: 14, color: refineFocused ? ACCENT : SUBTLE, flexShrink: 0, transition: "color 0.15s" }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path d="M5 3l1.5 1.5M12 2v2M19 3l-1.5 1.5M2 12h2M20 12h2M5 21l1.5-1.5M12 20v2M19 21l-1.5-1.5M12 12a4 4 0 110-8 4 4 0 010 8z" />
+                  </svg>
+                  <input
+                    ref={refineRef}
+                    value={refineText}
+                    onChange={(e) => setRefineText(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") performRefine(); }}
+                    onFocus={() => setRefineFocused(true)}
+                    onBlur={() => setRefineFocused(false)}
+                    placeholder={`Refine "${baseQuery}"… e.g. without cap, smiling, outdoors`}
+                    style={{
+                      flex: 1, border: "none", outline: "none",
+                      background: "transparent", fontSize: 14,
+                      color: TEXT, padding: "0 10px", fontFamily: "inherit",
+                    }}
+                  />
+                  {refineText && (
+                    <button onClick={() => setRefineText("")} style={{ background: "none", border: "none", cursor: "pointer", color: SUBTLE, display: "flex", padding: 2 }}>
+                      <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <path d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  onClick={performRefine}
+                  disabled={!refineText.trim()}
+                  style={{
+                    padding: "0 18px", height: 40,
+                    background: refineText.trim() ? ACCENT : BORDER,
+                    color: refineText.trim() ? (isDark ? "#0f0d0b" : "#fff") : SUBTLE,
+                    border: "none", borderRadius: 20, fontSize: 13,
+                    fontFamily: "inherit", fontWeight: 500,
+                    cursor: refineText.trim() ? "pointer" : "not-allowed",
+                    transition: "all 0.15s", flexShrink: 0, whiteSpace: "nowrap",
+                  }}
+                >
+                  Refine
+                </button>
+              </div>
             </div>
           </div>
-          
-          {/* Status text */}
-          <div className="mt-12 text-center space-y-2">
-            <span className={`block text-sm font-black uppercase tracking-[0.5em] bg-gradient-to-r bg-clip-text text-transparent ${
-              isDark
-                ? "from-indigo-400 to-violet-400"
-                : "from-indigo-600 to-violet-600"
-            }`}>
-              {refining ? "Refining Context" : "Syncing Nexus"}
-            </span>
-            <div className="flex items-center justify-center gap-1">
-              <div className={`w-2 h-2 rounded-full animate-bounce ${isDark ? "bg-indigo-400" : "bg-indigo-600"}`}></div>
-              <div className={`w-2 h-2 rounded-full animate-bounce ${isDark ? "bg-violet-400" : "bg-violet-600"}`} style={{ animationDelay: '0.1s' }}></div>
-              <div className={`w-2 h-2 rounded-full animate-bounce ${isDark ? "bg-fuchsia-400" : "bg-fuchsia-600"}`} style={{ animationDelay: '0.2s' }}></div>
-            </div>
+        )}
+
+        {/* ── LIGHTBOX ── */}
+        {lightboxImg && (
+          <ImageLightbox img={lightboxImg} onClose={() => setLightboxImg(null)} isDark={isDark} />
+        )}
+
+        {/* ── LOADING ── */}
+        {loading && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 400, background: isDark ? "rgba(17,17,16,0.88)" : "rgba(247,245,242,0.88)", backdropFilter: "blur(8px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
+            <svg style={{ width: 28, height: 28 }} viewBox="0 0 28 28">
+              <circle cx="14" cy="14" r="11" fill="none" stroke={BORDER} strokeWidth="2" />
+              <path d="M14 3 A11 11 0 0 1 25 14" fill="none" stroke={ACCENT} strokeWidth="2.5" strokeLinecap="round" className="spin" />
+            </svg>
+            <p style={{ fontSize: 13, color: MUTED, fontWeight: 500 }}>Searching…</p>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 }

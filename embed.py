@@ -4,6 +4,7 @@ import json
 import numpy as np
 import faiss
 import torch
+import sys
 from PIL import Image
 from transformers import logging
 from sentence_transformers import SentenceTransformer
@@ -24,14 +25,8 @@ print(f"Using device: {device}")
 # -------------------- Models --------------------
 print("Loading models...")
 
-# BGE: text-to-text retrieval (768-dim, unchanged)
 text_embedder = SentenceTransformer("BAAI/bge-base-en").to(device)
 
-# CLIP via sentence-transformers: unified image+text space (768-dim)
-# clip-ViT-L-14 is larger and much better than clip-ViT-B-32.
-# sentence-transformers wraps it cleanly and works on Python 3.14.
-# Both images and text passages are embedded into the same 768-dim space,
-# so image queries can directly retrieve text and vice versa.
 print("Loading CLIP ViT-L-14 via sentence-transformers...")
 clip_model = SentenceTransformer("clip-ViT-L-14")
 
@@ -40,7 +35,6 @@ def normalize(vec: np.ndarray) -> np.ndarray:
     n = np.linalg.norm(vec)
     return vec if n == 0 else vec / n
 
-# BGE: document side (no prefix - added at query time in search.py)
 def embed_text_bge(text: str) -> np.ndarray:
     emb = text_embedder.encode(
         [text],
@@ -49,25 +43,34 @@ def embed_text_bge(text: str) -> np.ndarray:
     )
     return normalize(emb[0].astype("float32"))
 
-# CLIP text: embeds text into the shared image+text space
 def embed_text_clip(text: str) -> np.ndarray:
     emb = clip_model.encode(text, convert_to_numpy=True)
     return normalize(emb.astype("float32").reshape(-1))
 
-# CLIP image: embeds image into the same shared space
 def embed_image_clip(path: str) -> np.ndarray:
     image = Image.open(path).convert("RGB")
     emb = clip_model.encode(image, convert_to_numpy=True)
     return normalize(emb.astype("float32").reshape(-1))
 
 # -------------------- Storage --------------------
-text_embeddings,      text_metadata      = [], []  # BGE 768-dim
-image_embeddings,     image_metadata     = [], []  # CLIP 768-dim (images)
-clip_text_embeddings, clip_text_metadata = [], []  # CLIP 768-dim (text passages)
+text_embeddings,      text_metadata      = [], []
+image_embeddings,     image_metadata     = [], []
+clip_text_embeddings, clip_text_metadata = [], []
 
 meta_files = [f for f in os.listdir(TEXT_META_DIR) if f.endswith(".json")]
 print(f"Processing {len(meta_files)} metadata files...")
 
+# -------------------- Count total items --------------------
+total_items = 0
+for meta_file in meta_files:
+    with open(os.path.join(TEXT_META_DIR, meta_file), "r", encoding="utf-8") as f:
+        page = json.load(f)
+        total_items += len(page.get("content", []))
+
+print(f"Total items to process: {total_items}")
+processed_items = 0
+
+# -------------------- Processing --------------------
 for meta_file in meta_files:
     with open(os.path.join(TEXT_META_DIR, meta_file), "r", encoding="utf-8") as f:
         page = json.load(f)
@@ -77,13 +80,20 @@ for meta_file in meta_files:
 
     for block in page.get("content", []):
 
+        processed_items += 1
+        progress = (processed_items / total_items) * 100 if total_items else 0
+
+        # Live progress (single line)
+        if processed_items % 50 == 0 or processed_items == total_items:
+            sys.stdout.write(f"\rProgress: {processed_items}/{total_items} ({progress:.2f}%)")
+            sys.stdout.flush()
+
         # ---- Text blocks ----
         if block["type"] == "text":
             text = block.get("content", "").strip()
             if not text:
                 continue
 
-            # BGE embedding (text->text search)
             try:
                 emb_bge = embed_text_bge(text)
                 text_embeddings.append(emb_bge)
@@ -93,9 +103,8 @@ for meta_file in meta_files:
                     "text":  text,
                 })
             except Exception as e:
-                print(f"[BGE ERROR] {e}")
+                print(f"\n[BGE ERROR] {e}")
 
-            # CLIP text embedding (image->text cross-modal search)
             try:
                 emb_clip = embed_text_clip(text)
                 clip_text_embeddings.append(emb_clip)
@@ -106,17 +115,19 @@ for meta_file in meta_files:
                     "kind":  "text",
                 })
             except Exception as e:
-                print(f"[CLIP TEXT ERROR] {e}")
+                print(f"\n[CLIP TEXT ERROR] {e}")
 
         # ---- Image blocks ----
         elif block["type"] == "image":
             filename = block.get("filename")
             if not filename:
                 continue
+
             path = os.path.join(IMAGE_DIR, filename)
             if not os.path.exists(path):
-                print(f"[IMAGE MISSING] {filename}")
+                print(f"\n[IMAGE MISSING] {filename}")
                 continue
+
             try:
                 emb_clip = embed_image_clip(path)
                 image_embeddings.append(emb_clip)
@@ -128,22 +139,18 @@ for meta_file in meta_files:
                     "kind":     "image",
                 })
             except Exception as e:
-                print(f"[CLIP IMAGE ERROR] {filename}: {e}")
+                print(f"\n[CLIP IMAGE ERROR] {filename}: {e}")
 
-print(
-    f"Embeddings collected -> "
-    f"BGE text: {len(text_embeddings)} | "
-    f"CLIP text: {len(clip_text_embeddings)} | "
-    f"CLIP images: {len(image_embeddings)}"
-)
+print("\nEmbedding collection completed.")
 
 # -------------------- Build FAISS indices --------------------
+if len(text_embeddings) == 0 or len(image_embeddings) == 0 or len(clip_text_embeddings) == 0:
+    raise ValueError("No embeddings found. Check your data pipeline.")
+
 text_embeddings      = np.stack(text_embeddings).astype("float32")
 image_embeddings     = np.stack(image_embeddings).astype("float32")
 clip_text_embeddings = np.stack(clip_text_embeddings).astype("float32")
 
-# Unified CLIP index: images + text passages in the same space.
-# An image query vector can now retrieve both images AND text passages.
 unified_clip_embeddings = np.vstack([image_embeddings, clip_text_embeddings]).astype("float32")
 unified_clip_metadata   = image_metadata + clip_text_metadata
 

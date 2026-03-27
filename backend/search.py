@@ -293,10 +293,65 @@ def search_text(query: str, k: int = 10) -> dict:
     ranked      = sorted(zip(ce_scores.tolist(), faiss_scores, candidates),
                          key=lambda x: x[0], reverse=True)
 
-    results      = []
-    final_scores = []   # FAISS cosine scores used for NDCG/distribution
+    # Pass 1: collect unique snippets from the ranked list.
+    # Deduplication is by snippet fingerprint (first 120 chars) so that
+    # multiple distinct passages from the same article are allowed —
+    # important when only one article covers the query (e.g. "balen shah").
+    seen_snippets = set()
+    deduped       = []
+    for ce_s, faiss_s, c in ranked:
+        snippet_key = (c.get("text") or "")[:120]
+        if snippet_key in seen_snippets:
+            continue
+        seen_snippets.add(snippet_key)
+        deduped.append((ce_s, faiss_s, c))
+        if len(deduped) >= k:
+            break
+
+    # Pass 2: if the corpus only has a few unique chunks for this query
+    # (e.g. Balen Shah article was scraped as 2 blocks), pad up to k
+    # with the nearest-neighbour results from OTHER articles so the user
+    # always sees at least k results.
+    if len(deduped) < k:
+        seen_snippets_set = {fp for fp in seen_snippets}
+        # Scan the full ranked list again for candidates from other articles
+        for ce_s, faiss_s, c in ranked:
+            snippet_key = (c.get("text") or "")[:120]
+            # Already included — skip
+            if snippet_key in seen_snippets_set:
+                continue
+            # This is a new snippet we haven't added yet — include it
+            seen_snippets_set.add(snippet_key)
+            deduped.append((ce_s, faiss_s, c))
+            if len(deduped) >= k:
+                break
+
+        # If still under k (corpus genuinely has fewer unique passages),
+        # expand the FAISS search and try once more with a bigger pool.
+        if len(deduped) < k:
+            extra_candidates = max(500, k * 50)
+            D2, I2 = text_index.search(emb, min(extra_candidates, text_index.ntotal))
+            extra  = [text_meta[i] for i in I2[0] if i < len(text_meta)]
+            extra_faiss = [float(D2[0][j]) for j in range(len(extra))]
+            extra_pairs  = [[query, c["text"]] for c in extra]
+            extra_ce     = reranker.predict(extra_pairs).flatten()
+            extra_ranked = sorted(
+                zip(extra_ce.tolist(), extra_faiss, extra),
+                key=lambda x: x[0], reverse=True
+            )
+            for ce_s, faiss_s, c in extra_ranked:
+                snippet_key = (c.get("text") or "")[:120]
+                if snippet_key in seen_snippets_set:
+                    continue
+                seen_snippets_set.add(snippet_key)
+                deduped.append((ce_s, faiss_s, c))
+                if len(deduped) >= k:
+                    break
+
+    results       = []
+    final_scores  = []  # FAISS cosine scores used for NDCG/distribution
     ce_score_list = []  # CrossEncoder scores stored separately
-    for ce_s, faiss_s, c in ranked[:k]:
+    for ce_s, faiss_s, c in deduped:
         results.append({
             "title":             c.get("title"),
             "url":               c.get("url"),
@@ -304,9 +359,6 @@ def search_text(query: str, k: int = 10) -> dict:
             "cosine_similarity": round(float(faiss_s), 4),
             "snippet":           (c.get("text") or "")[:200] + "...",
         })
-        # Use FAISS cosine score for IR metrics: it has real variance
-        # across passages. CE score collapses to same value for passages
-        # from the same article, making std=0 and NDCG=undefined.
         final_scores.append(float(faiss_s))
         ce_score_list.append(float(ce_s))
 
@@ -436,7 +488,9 @@ def search_text_from_image(img: Image.Image, k: int = 10) -> dict:
     query_emb = embed_image_clip(img)
     emb       = query_emb.reshape(1, -1)
 
-    n_candidates = max(150, k * 15)
+    # Fetch a large pool — the unified index has text + images mixed,
+    # so we need to oversample to get enough text-kind entries after filtering.
+    n_candidates = min(unified_clip_index.ntotal, max(500, k * 50))
     D, I = unified_clip_index.search(emb, n_candidates)
 
     text_candidates  = []
@@ -445,9 +499,22 @@ def search_text_from_image(img: Image.Image, k: int = 10) -> dict:
         if i >= len(unified_clip_meta):
             continue
         entry = unified_clip_meta[i]
-        if entry.get("kind") == "text" and float(D[0][j]) > 0.10:
+        # Lowered threshold from 0.10 -> 0.05 so low-scoring but valid
+        # passages are not dropped, especially for cross-modal queries
+        # where CLIP cosine scores are naturally lower than text-to-text.
+        if entry.get("kind") == "text" and float(D[0][j]) > 0.05:
             text_candidates.append(entry)
             text_clip_scores.append(float(D[0][j]))
+
+    # If still not enough, accept everything regardless of score
+    if len(text_candidates) < k:
+        for j, i in enumerate(I[0]):
+            if i >= len(unified_clip_meta):
+                continue
+            entry = unified_clip_meta[i]
+            if entry.get("kind") == "text" and entry not in text_candidates:
+                text_candidates.append(entry)
+                text_clip_scores.append(float(D[0][j]))
 
     if not text_candidates:
         return {"results": [], "metrics": {}}
@@ -461,21 +528,27 @@ def search_text_from_image(img: Image.Image, k: int = 10) -> dict:
     ce_norm   = _minmax(ce_scores)
     fused     = 0.7 * clip_norm + 0.3 * ce_norm
 
-    seen_titles  = set()
-    results      = []
-    final_scores = []
-    cosine_vals  = []
+    # Deduplicate by snippet (not title) so multiple passages from the
+    # same article are allowed — ensures we always return k results
+    # even when only one article is relevant.
+    seen_snippets = set()
+    results       = []
+    final_scores  = []
+    cosine_vals   = []
 
-    for score, cosine_s, c in sorted(
+    ranked = sorted(
         zip(fused.tolist(), clip_scores.tolist(), text_candidates),
         key=lambda x: x[0], reverse=True
-    ):
-        title = c.get("title")
-        if title in seen_titles:
+    )
+
+    # Pass 1: unique snippets
+    for score, cosine_s, c in ranked:
+        snippet_key = (c.get("text") or "")[:120]
+        if snippet_key in seen_snippets:
             continue
-        seen_titles.add(title)
+        seen_snippets.add(snippet_key)
         results.append({
-            "title":             title,
+            "title":             c.get("title"),
             "url":               c.get("url"),
             "score":             round(float(score), 4),
             "cosine_similarity": round(float(cosine_s), 4),
@@ -485,6 +558,24 @@ def search_text_from_image(img: Image.Image, k: int = 10) -> dict:
         cosine_vals.append(float(cosine_s))
         if len(results) >= k:
             break
+
+    # Pass 2: still under k — pad with nearest neighbours ignoring dedup
+    if len(results) < k:
+        for score, cosine_s, c in ranked:
+            if len(results) >= k:
+                break
+            snippet_key = (c.get("text") or "")[:120]
+            if snippet_key in seen_snippets:
+                continue
+            results.append({
+                "title":             c.get("title"),
+                "url":               c.get("url"),
+                "score":             round(float(score), 4),
+                "cosine_similarity": round(float(cosine_s), 4),
+                "snippet":           (c.get("text") or "")[:200] + "...",
+            })
+            final_scores.append(float(score))
+            cosine_vals.append(float(cosine_s))
 
     latency_ms = (time.perf_counter() - t0) * 1000
 
@@ -525,4 +616,118 @@ def unified_image_search(image: Image.Image, k: int = 10) -> dict:
     return {
         "text_results":  text["results"],
         "image_results": images["results"],
+    }
+
+# ============================================================
+#  REFINEMENT ENDPOINT
+#  Takes the current result set + a text constraint and
+#  re-ranks without doing a new FAISS search.
+#
+#  Strategy per mode:
+#
+#  text_results refinement:
+#    CrossEncoder scores each passage against
+#    (original_query + " " + constraint) — the CE understands
+#    natural language constraints like "early life" or "election"
+#    far better than cosine similarity can.
+#
+#  image_results refinement:
+#    CLIP embeds the constraint text, then for each image we
+#    fetch its stored embedding from the index and compute:
+#      final = 0.4 * sim(image, original_query) + 0.6 * sim(image, constraint)
+#    This is proper zero-shot visual attribute filtering —
+#    "without cap", "smiling", "outdoors" actually works because
+#    CLIP understands these visual concepts directly.
+# ============================================================
+
+def _get_image_embedding(filename: str) -> np.ndarray | None:
+    """Look up a stored image embedding from the FAISS index by filename."""
+    for idx, meta in enumerate(image_meta):
+        if meta.get("filename") == filename:
+            # Reconstruct vector from index
+            vec = np.zeros(image_index.d, dtype="float32")
+            image_index.reconstruct(idx, vec)
+            return normalize(vec)
+    return None
+
+
+def refine_results(
+    text_results: list[dict],
+    image_results: list[dict],
+    original_query: str,
+    constraint: str,
+    k: int = 10,
+) -> dict:
+    """
+    Re-rank existing results using a refinement constraint.
+    Does NOT do a new FAISS search — pure re-ranking over current results.
+    """
+    t0 = time.perf_counter()
+
+    # ── Refine text results with CrossEncoder ──────────────────────────────
+    refined_text = []
+    if text_results:
+        # CE query = original query + constraint gives much better precision
+        # than searching with the constraint alone
+        combined_query = f"{original_query} {constraint}".strip()
+        ce_pairs = [[combined_query, r.get("snippet", "") + " " + r.get("title", "")]
+                    for r in text_results]
+        ce_scores = reranker.predict(ce_pairs).flatten()
+
+        ranked_text = sorted(
+            zip(ce_scores.tolist(), text_results),
+            key=lambda x: x[0], reverse=True
+        )
+        refined_text = [
+            {**r, "score": round(float(s), 4)}
+            for s, r in ranked_text[:k]
+        ]
+
+    # ── Refine image results with CLIP zero-shot ───────────────────────────
+    refined_images = []
+    if image_results:
+        # Embed the constraint with CLIP text encoder
+        constraint_emb  = embed_text_clip(constraint)
+        orig_query_emb  = embed_text_clip(original_query)
+
+        scored = []
+        for img in image_results:
+            filename = img.get("filename")
+            img_emb  = _get_image_embedding(filename) if filename else None
+
+            if img_emb is not None:
+                # Zero-shot CLIP scoring:
+                # How well does this image match the visual constraint?
+                sim_constraint   = float(np.dot(img_emb, constraint_emb))
+                sim_original     = float(np.dot(img_emb, orig_query_emb))
+                # Blend: constraint drives 60%, original query anchors 40%
+                # so "balen shah without cap" keeps Balen Shah images
+                # but re-ranks those matching "without cap" to the top
+                final_score = 0.4 * sim_original + 0.6 * sim_constraint
+            else:
+                # Fallback: use caption + title similarity via CE
+                cap_text = f"{img.get('caption', '')} {img.get('title', '')}".strip()
+                ce_score = float(reranker.predict([[constraint, cap_text]]).flatten()[0])
+                final_score = ce_score
+
+            scored.append((final_score, img))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        refined_images = [
+            {**img, "score": round(float(s), 4)}
+            for s, img in scored[:k]
+        ]
+
+    latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+
+    _log_metrics(
+        "refine",
+        f"{original_query} → {constraint}",
+        {"latency_ms": latency_ms, "text_reranked": len(refined_text), "image_reranked": len(refined_images)},
+        refined_text,
+    )
+
+    return {
+        "text_results":  refined_text,
+        "image_results": refined_images,
     }

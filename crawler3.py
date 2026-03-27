@@ -9,7 +9,7 @@ import json
 from tqdm import tqdm
 
 # ---------------- CONFIG ----------------
-start_url = "https://en.wikipedia.org/wiki/Balen_Shah"
+start_url = "https://en.wikipedia.org/wiki/K._P._Sharma_Oli"
 allowed_domain = "en.wikipedia.org"
 max_pages = 100
 
@@ -23,8 +23,8 @@ HEADERS = {
 }
 
 # ---------------- COUNTERS ----------------
-page_count = 11
-image_count = 37
+page_count = 0
+image_count = 0
 
 # ---------------- SCRAPE PAGE (and extract links) ----------------
 def extract_content_and_links(url, page_id, downloaded_images):
