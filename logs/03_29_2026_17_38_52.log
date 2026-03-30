@@ -1,0 +1,14 @@
+2026-03-29 17:38:52,597 - asyncio - DEBUG - Using selector: EpollSelector
+2026-03-29 17:39:10,662 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2026-03-29 17:39:10,663 - python_multipart.multipart - DEBUG - Calling on_header_field with data[42:61]
+2026-03-29 17:39:10,663 - python_multipart.multipart - DEBUG - Calling on_header_value with data[63:86]
+2026-03-29 17:39:10,663 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2026-03-29 17:39:10,663 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2026-03-29 17:39:10,663 - python_multipart.multipart - DEBUG - Calling on_part_data with data[90:98]
+2026-03-29 17:39:10,664 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2026-03-29 17:39:10,664 - python_multipart.multipart - DEBUG - Calling on_end with no data
+2026-03-29 17:39:10,798 - faiss.loader - DEBUG - Environment variable FAISS_OPT_LEVEL is not set, so let's pick the instruction set according to the current CPU
+2026-03-29 17:39:10,798 - faiss.loader - INFO - Loading faiss with AVX2 support.
+2026-03-29 17:39:10,844 - faiss.loader - INFO - Successfully loaded faiss with AVX2 support.
+2026-03-29 17:39:16,423 - root - INFO - Entered predict method of MultimodalSearch class
+2026-03-29 17:39:16,424 - root - ERROR - Error occured in python script [/home/urbanaghora/Multi_Modal_Search_Engine/src/pipline/prediction_pipeline.py] at line number [69]

@@ -2,7 +2,7 @@
   "q01": {
     "query": "balen shah mayor kathmandu",
     "type": "text",
-    "latency_ms": 302.49,
+    "latency_ms": 872.01,
     "results": [
       {
         "rank": 1,
@@ -12,56 +12,26 @@
       },
       {
         "rank": 2,
-        "title": "Balen Shah - Wikipedia",
-        "snippet": "Balendra Shah[a] (born 27 April 1990), popularly known as Balen, is a Nepalese politician, structural engineer, and rapp",
-        "relevance": 2
+        "title": "Visvesvaraya Technological University - Wikipedia",
+        "snippet": "5. Balen Shah:Prime Minister Elect of Nepal. Former mayor of Kathmandu, and a Nepalese rapper, music composer, poet, str",
+        "relevance": 1
       },
       {
         "rank": 3,
         "title": "Balen Shah - Wikipedia",
-        "snippet": "Balendra Shah[a] (born 27 April 1990), popularly known as Balen, is a Nepalese politician, structural engineer, and rapp",
+        "snippet": "In the 2022 local election, Shah was elected mayor of Kathmandu; during his tenure, he introduced initiatives in waste m",
         "relevance": 2
       },
       {
         "rank": 4,
         "title": "Balen Shah - Wikipedia",
-        "snippet": "Balendra Shah[a] (born 27 April 1990), popularly known as Balen, is a Nepalese politician, structural engineer, and rapp",
+        "snippet": "Following his tenure as Mayor of Kathmandu, Shah resigned from his mayoral post in January 2026 and joined the Rastriya ",
         "relevance": 2
       },
       {
         "rank": 5,
         "title": "Balen Shah - Wikipedia",
-        "snippet": "Balendra Shah[a] (born 27 April 1990), popularly known as Balen, is a Nepalese politician, structural engineer, and rapp",
-        "relevance": 2
-      },
-      {
-        "rank": 6,
-        "title": "Balen Shah - Wikipedia",
-        "snippet": "Balendra Shah[a] (born 27 April 1990), popularly known as Balen, is a Nepalese politician, structural engineer, and rapp",
-        "relevance": 2
-      },
-      {
-        "rank": 7,
-        "title": "Balen Shah - Wikipedia",
-        "snippet": "Balendra Shah[a] (born 27 April 1990), popularly known as Balen, is a Nepalese politician, structural engineer, and rapp",
-        "relevance": 2
-      },
-      {
-        "rank": 8,
-        "title": "Balen Shah - Wikipedia",
-        "snippet": "Balendra Shah[a] (born 27 April 1990), popularly known as Balen, is a Nepalese politician, structural engineer, and rapp",
-        "relevance": 2
-      },
-      {
-        "rank": 9,
-        "title": "Balen Shah - Wikipedia",
-        "snippet": "Balendra Shah[a] (born 27 April 1990), popularly known as Balen, is a Nepalese politician, structural engineer, and rapp",
-        "relevance": 2
-      },
-      {
-        "rank": 10,
-        "title": "Balen Shah - Wikipedia",
-        "snippet": "Balendra Shah[a] (born 27 April 1990), popularly known as Balen, is a Nepalese politician, structural engineer, and rapp",
+        "snippet": "Balen Shah had been mulling over his plans for candidacy since 2020 and on 17 December 2021 announced that he would be r",
         "relevance": 2
       }
     ]
@@ -69,7 +39,7 @@
   "q02": {
     "query": "kp oli prime minister nepal",
     "type": "text",
-    "latency_ms": 261.15,
+    "latency_ms": 955.05,
     "results": [
       {
         "rank": 1,
@@ -80,324 +50,123 @@
       {
         "rank": 2,
         "title": "K. P. Sharma Oli - Wikipedia",
-        "snippet": "Khadga Prasad Sharma Oli[b] (born 22 February 1952) is a Nepalese politician who served as the prime minister of Nepal i",
+        "snippet": "Following the promulgation of the new constitution, Oli was elected as Prime Minister in a parliamentary vote on 11 Octo",
         "relevance": 2
       },
       {
         "rank": 3,
-        "title": "2025 Nepalese Gen Z protests - Wikipedia",
-        "snippet": "On 9 September 2025, Prime Minister K. P. Sharma Oli, along with a few government ministers, resigned. On 12 September, ",
-        "relevance": 2
+        "title": "Balen Shah - Wikipedia",
+        "snippet": "Following his tenure as Mayor of Kathmandu, Shah resigned from his mayoral post in January 2026 and joined the Rastriya ",
+        "relevance":2
       },
       {
         "rank": 4,
-        "title": "K. P. Sharma Oli - Wikipedia",
-        "snippet": "Following the promulgation of the new constitution, Oli was elected as Prime Minister in a parliamentary vote on 11 Octo",
+        "title": "History of Nepal - Wikipedia",
+        "snippet": "On 15 July 2024, K. P. Sharma Oli was sworn in as Nepali Prime Minister for fourth time. A new coalition was formed betw",
         "relevance": 2
       },
       {
         "rank": 5,
-        "title": "K. P. Sharma Oli - Wikipedia",
-        "snippet": "Following the promulgation of the new constitution, Oli was elected as Prime Minister in a parliamentary vote on 11 Octo",
-        "relevance": 2
+        "title": "Nepal - Wikipedia",
+        "snippet": "In September 2025, widespread protests over a social media ban and economic inequality led to rioting that killed or inj",
+        "relevance": 1
       },
       {
         "rank": 6,
-        "title": "Balen Shah - Wikipedia",
-        "snippet": "Following his tenure as Mayor of Kathmandu, Shah resigned from his mayoral post in January 2026 and joined the Rastriya ",
+        "title": "Communist Party of Nepal (Unified Marxist–Leninist) - Wikipedia",
+        "snippet": "In the 2013 election, the party became the second largest party winning 175 out of 575 elected seats. The party joined t",
         "relevance": 1
       },
       {
         "rank": 7,
-        "title": "Balen Shah - Wikipedia",
-        "snippet": "Following his tenure as Mayor of Kathmandu, Shah resigned from his mayoral post in January 2026 and joined the Rastriya ",
+        "title": "Communist Party of Nepal (Unified Marxist–Leninist) - Wikipedia",
+        "snippet": "A cabinet meeting chaired by prime minister and party chairman K. P. Sharma Oli recommended that the president dissolve ",
         "relevance": 1
       },
       {
         "rank": 8,
-        "title": "Balen Shah - Wikipedia",
-        "snippet": "Following his tenure as Mayor of Kathmandu, Shah resigned from his mayoral post in January 2026 and joined the Rastriya ",
+        "title": "Pushpa Kamal Dahal - Wikipedia",
+        "snippet": "Pushpa Kamal Dahal[c] (born Ghanashyam Dahal; 11 December 1954), also known as Prachanda,[d] is a Nepalese politician. H",
         "relevance": 1
       },
       {
         "rank": 9,
-        "title": "Balen Shah - Wikipedia",
-        "snippet": "Following his tenure as Mayor of Kathmandu, Shah resigned from his mayoral post in January 2026 and joined the Rastriya ",
+        "title": "History of Nepal - Wikipedia",
+        "snippet": "In June 2017, Nepali Congress leader Sher Bahadur Deuba was elected the 40th Prime Minister of Nepal, succeeding Prime M",
         "relevance": 1
       },
       {
         "rank": 10,
-        "title": "Balen Shah - Wikipedia",
-        "snippet": "Following his tenure as Mayor of Kathmandu, Shah resigned from his mayoral post in January 2026 and joined the Rastriya ",
+        "title": "Khil Raj Regmi - Wikipedia",
+        "snippet": "Khil Raj Regmi (Nepali: खिलराज रेग्मी, OGDB, OTSP, born 31 May 1949) was the interim Prime Minister of Nepal from 2013 t",
         "relevance": 1
       }
     ]
   },
   "q03": {
-    "query": "mountains in nepal",
+    "query": "nepal earthquake 2015",
     "type": "text",
-    "latency_ms": 695.47,
+    "latency_ms": 178.08,
     "results": [
       {
         "rank": 1,
-        "title": "Nepal - Wikipedia",
-        "snippet": "Nepal is divided into three principal physiographic belts known as Himal–Pahad–Terai.[g] Himal is the mountain region co",
-        "relevance": 1
+        "title": "History of Nepal - Wikipedia",
+        "snippet": "On 25 April 2015, a devastating earthquake of moment magnitude of 7.8Mw killed nearly 9,000 people and injured nearly 22",
+        "relevance": 2
       },
       {
         "rank": 2,
-        "title": "Nepal - Wikipedia",
-        "snippet": "Nepal is divided into three principal physiographic belts known as Himal–Pahad–Terai.[g] Himal is the mountain region co",
-        "relevance": 1
-      },
-      {
-        "rank": 3,
-        "title": "Nepal - Wikipedia",
-        "snippet": "Nepal is divided into three principal physiographic belts known as Himal–Pahad–Terai.[g] Himal is the mountain region co",
-        "relevance": 1
-      },
-      {
-        "rank": 4,
-        "title": "Nepal - Wikipedia",
-        "snippet": "Nepal is divided into three principal physiographic belts known as Himal–Pahad–Terai.[g] Himal is the mountain region co",
-        "relevance": 1
-      },
-      {
-        "rank": 5,
-        "title": "Nepal - Wikipedia",
-        "snippet": "Nepal is divided into three principal physiographic belts known as Himal–Pahad–Terai.[g] Himal is the mountain region co",
-        "relevance": 1
-      },
-      {
-        "rank": 6,
         "title": "Kathmandu Valley - Wikipedia",
-        "snippet": "The Kathmandu Valley (Nepali: काठमाडौं उपत्यका), also known as the Nepal Valley or Nepa Valley (Nepali: नेपाः उपत्यका, N",
-        "relevance": 1
-      },
-      {
-        "rank": 7,
-        "title": "Nepal - Wikipedia",
-        "snippet": "Nepal,[a] officially the Federal Democratic Republic of Nepal,[b] is a landlocked country in South Asia. It is mainly si",
-        "relevance": 1
-      },
-      {
-        "rank": 8,
-        "title": "Nepal - Wikipedia",
-        "snippet": "Nepal,[a] officially the Federal Democratic Republic of Nepal,[b] is a landlocked country in South Asia. It is mainly si",
-        "relevance": 1
-      },
-      {
-        "rank": 9,
-        "title": "Nepal - Wikipedia",
-        "snippet": "Nepal,[a] officially the Federal Democratic Republic of Nepal,[b] is a landlocked country in South Asia. It is mainly si",
-        "relevance": 1
-      },
-      {
-        "rank": 10,
-        "title": "Nepal - Wikipedia",
-        "snippet": "Nepal,[a] officially the Federal Democratic Republic of Nepal,[b] is a landlocked country in South Asia. It is mainly si",
-        "relevance": 1
-      }
-    ]
-  },
-  "q04": {
-    "query": "kathmandu",
-    "type": "text",
-    "latency_ms": 308.75,
-    "results": [
-      {
-        "rank": 1,
-        "title": "Kathmandu - Wikipedia",
-        "snippet": "Kathmandu[a] (Nepali: [ˈkaʈʰmaɳɖu]) is the capital and largest city of Nepal, situated in the central part of the countr",
-        "relevance": 2
-      },
-      {
-        "rank": 2,
-        "title": "Kathmandu - Wikipedia",
-        "snippet": "Kathmandu is the most important industrial and commercial centre in Nepal. The Nepal Stock Exchange, the head office of ",
+        "snippet": "In 2015, Kathmandu Valley was hit by the April 2015 Nepal earthquake.[5] The earthquake caused thousands of deaths and t",
         "relevance": 2
       },
       {
         "rank": 3,
-        "title": "Kathmandu - Wikipedia",
-        "snippet": "Kathmandu is the headquarters of the surrounding Kathmandu District....",
+        "title": "Singha Durbar - Wikipedia",
+        "snippet": "Singha Durbar was seriously damaged during the April 2015 Nepal earthquake.[6]...",
         "relevance": 2
       },
       {
         "rank": 4,
-        "title": "Kathmandu - Wikipedia",
-        "snippet": "Today, Kathmandu remains the epicenter of Nepal's history, art, culture, and economy. It has a multi-ethnic population w",
-        "relevance": 2
-      },
-      {
-        "rank": 5,
-        "title": "Kathmandu - Wikipedia",
-        "snippet": "Kathmandu is in the northwestern part of the Kathmandu Valley to the north of the Bagmati River and covers an area of 50",
-        "relevance": 2
-      },
-      {
-        "rank": 6,
         "title": "Kathmandu - Wikipedia",
         "snippet": "The Nepali name Kathmandu comes from Kasthamandap, a building that stood in Kathmandu Durbar Square and was completely d",
-        "relevance": 2
-      },
-      {
-        "rank": 7,
-        "title": "Kathmandu Valley - Wikipedia",
-        "snippet": "The Kathmandu Valley (Nepali: काठमाडौं उपत्यका), also known as the Nepal Valley or Nepa Valley (Nepali: नेपाः उपत्यका, N",
-        "relevance": 2
-      },
-      {
-        "rank": 8,
-        "title": "Kathmandu - Wikipedia",
-        "snippet": "Recognized as one of the oldest continuously inhabited places in the world, Kathmandu's history dates back to the 2nd ce",
-        "relevance": 2
-      },
-      {
-        "rank": 9,
-        "title": "Kathmandu - Wikipedia",
-        "snippet": "Kathmandu is also home of some of the oldest cricket clubs in Nepal, such as Yengal Sports Club. Kathmandu Gorkhas repre",
-        "relevance": 2
-      },
-      {
-        "rank": 10,
-        "title": "Kathmandu - Wikipedia",
-        "snippet": "Kathmandu's urban cosmopolitan character has made it the most populous city in Nepal. According to the National Populati",
-        "relevance": 2
-      }
-    ]
-  },
-  "q05": {
-    "query": "sher bahadur deuba",
-    "type": "text",
-    "latency_ms": 531.4,
-    "results": [
-      {
-        "rank": 1,
-        "title": "Sher Bahadur Deuba - Wikipedia",
-        "snippet": "Sher Bahadur Deuba[a] (born 13 June 1946) is a Nepalese politician who served as the 32nd prime minister of Nepal for fi",
-        "relevance": 2
-      },
-      {
-        "rank": 2,
-        "title": "Communist Party of Nepal (Maoist Centre) - Wikipedia",
-        "snippet": "On 4 February 1996, Baburam Bhattarai led a three-member delegation of the United People's Front of Nepal to present a m",
-        "relevance": 1
-      },
-      {
-        "rank": 3,
-        "title": "Communist Party of Nepal (Unified Marxist–Leninist) - Wikipedia",
-        "snippet": "The House of Representatives was dismissed by King Gyanendra on 22 May 2002 on the request of prime minister Sher Bahadu",
-        "relevance": 1
-      },
-      {
-        "rank": 4,
-        "title": "Communist Party of Nepal (Unified Marxist–Leninist) - Wikipedia",
-        "snippet": "The House of Representatives was dismissed by King Gyanendra on 22 May 2002 on the request of prime minister Sher Bahadu",
         "relevance": 1
       },
       {
         "rank": 5,
-        "title": "Communist Party of Nepal (Maoist Centre) - Wikipedia",
-        "snippet": "Following this the prime minister, Sher Bahadur Deuba, imposed a state of emergency and promulgated an anti-terrorist or",
-        "relevance": 1
+        "title": "Kathmandu - Wikipedia",
+        "snippet": "On 28 February 2025, a magnitude 6.1 earthquake struck north of Kathmandu, Nepal, according to the National Earthquake M",
+        "relevance": 2
       },
       {
         "rank": 6,
-        "title": "Communist Party of Nepal (Maoist Centre) - Wikipedia",
-        "snippet": "On 13 February 1996, after Prime Minister Sher Bahadur Deuba had left for a state visit to India two days before, the of",
+        "title": "Nepal - Wikipedia",
+        "snippet": "The Indian plate continues to move north relative to Asia at about 50 mm (2.0 in) per year.[94] This makes Nepal an eart",
         "relevance": 1
       },
       {
         "rank": 7,
-        "title": "2025 Nepalese Gen Z protests - Wikipedia",
-        "snippet": "Several political leaders and their residences were attacked. Former prime minister Sher Bahadur Deuba and his wife, for",
+        "title": "Nepal - Wikipedia",
+        "snippet": "Nepal is of roughly trapezoidal shape, about 800 kilometres (500 mi) long and 200 kilometres (120 mi) wide, with an area",
         "relevance": 1
       },
       {
         "rank": 8,
-        "title": "Nepal Student Union - Wikipedia",
-        "snippet": "The first major student movement was held in 1979 for the sake of Free Student Union and for the restoration of Democrac",
-        "relevance": 1
-      },
-      {
-        "rank": 9,
-        "title": "Communist Party of Nepal (Maoist Centre) - Wikipedia",
-        "snippet": "The party announced an alliance with the Communist Party of Nepal (Unified Marxist-Leninist) before the start of the 201",
-        "relevance": 1
-      },
-      {
-        "rank": 10,
-        "title": "Sher Bahadur Deuba - Wikipedia",
-        "snippet": "At the party's 14th general convention in December 2021, he faced a challenge from Shekhar Koirala, Prakash Man Singh, B",
-        "relevance": 1
-      }
-    ]
-  },
-  "q06": {
-    "query": "pashupatinath temple",
-    "type": "text",
-    "latency_ms": 354.15,
-    "results": [
-      {
-        "rank": 1,
         "title": "Kathmandu - Wikipedia",
-        "snippet": "The Pashupatinath Temple (Nepali: पशुपतिनाथ मन्दिर) is a famous 5th century Hindu temple dedicated to Shiva. Located on ",
-        "relevance": 2
-      },
-      {
-        "rank": 2,
-        "title": "Kathmandu - Wikipedia",
-        "snippet": "Believers in Pashupatinath (mainly Hindus) are allowed to enter the temple premises, but non-Hindu visitors are allowed ",
-        "relevance": 2
-      },
-      {
-        "rank": 3,
-        "title": "Kathmandu - Wikipedia",
-        "snippet": "Hinduism is one of the indigenous beliefs of the city. Assumedly, together with the kingdom of Licchhavi (c. 400 to 750)",
-        "relevance": 2
-      },
-      {
-        "rank": 4,
-        "title": "Kathmandu Valley - Wikipedia",
-        "snippet": "This valley hosts a UNESCO World Heritage Site with seven preserved locations: the centers of the three primary cities, ",
-        "relevance": 2
-      },
-      {
-        "rank": 5,
-        "title": "Kathmandu - Wikipedia",
-        "snippet": "Tourism is a major source of income for most of the people in the city, with several hundred thousand visitors annually.",
-        "relevance": 2
-      },
-      {
-        "rank": 6,
-        "title": "Nepal Student Union - Wikipedia",
-        "snippet": "The organization was formed during autocratic Panchayat era. It was formed in April 19 1970. Because of the prohibition ",
+        "snippet": "In September 2025, widespread Gen Z protests erupted in Kathmandu after the government imposed a ban on multiple social ",
         "relevance": 0
       },
       {
-        "rank": 7,
-        "title": "Kathmandu - Wikipedia",
-        "snippet": "Boudhanath (Nepali: बौद्ध स्तुप; also written as Bouddhanath, Bodhnath, Baudhanath or the Khāsa Chaitya), is one of the ",
-        "relevance": 1
-      },
-      {
-        "rank": 8,
-        "title": "Kathmandu - Wikipedia",
-        "snippet": "The ancient trade route between India and Tibet that passed through Kathmandu enabled a fusion of artistic and architect",
-        "relevance": 1
-      },
-      {
         "rank": 9,
-        "title": "Shiva - Wikipedia",
-        "snippet": "Of several Indus valley seals that show animals, one seal that has attracted attention shows a large central figure, eit",
-        "relevance": 1
+        "title": "Corruption in Nepal - Wikipedia",
+        "snippet": "This Nepal-related article is a stub. You can help Wikipedia by adding missing information....",
+        "relevance": 0
       },
       {
         "rank": 10,
-        "title": "Kathmandu - Wikipedia",
-        "snippet": "Kasthamandap is a three-storeyed temple enshrining an image of Gorakhnath. It was built in the 16th century in the pagod",
-        "relevance": 1
+        "title": "Balen Shah - Wikipedia",
+        "snippet": "Balendra Shah[a] (born 27 April 1990), popularly known as Balen, is a Nepalese politician, structural engineer, and rapp",
+        "relevance": 0
       }
     ]
   }

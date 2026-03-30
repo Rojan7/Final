@@ -1,0 +1,6 @@
+2026-03-29 19:00:00,329 - asyncio - DEBUG - Using selector: EpollSelector
+2026-03-29 19:00:21,214 - root - INFO - Starting training pipeline...
+2026-03-29 19:00:38,487 - faiss.loader - DEBUG - Environment variable FAISS_OPT_LEVEL is not set, so let's pick the instruction set according to the current CPU
+2026-03-29 19:00:38,487 - faiss.loader - INFO - Loading faiss with AVX2 support.
+2026-03-29 19:00:38,521 - faiss.loader - INFO - Successfully loaded faiss with AVX2 support.
+2026-03-29 19:00:38,526 - root - ERROR - Training failed: No module named 'mypy_boto3_s3'

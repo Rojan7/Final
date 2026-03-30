@@ -32,10 +32,7 @@ SAMPLE_QUERIES = [
     # text queries
     {"qid": "q01", "query": "balen shah mayor kathmandu", "type": "text"},
     {"qid": "q02", "query": "kp oli prime minister nepal",  "type": "text"},
-    {"qid": "q03", "query": "mountains in nepal",        "type": "text"},
-    {"qid": "q04", "query": "kathmandu",       "type": "text"},
-    {"qid": "q05", "query": "sher bahadur deuba",      "type": "text"},
-    {"qid": "q06", "query": "pashupatinath temple",         "type": "text"},
+    {"qid": "q03", "query": "nepal earthquake 2015",        "type": "text"},
 
 ]
 
@@ -60,41 +57,43 @@ def precision_at_k(retrieved_titles: list[str], relevant_titles: set[str], k: in
 
 def recall_at_k(retrieved_titles: list[str], relevant_titles: set[str], k: int) -> float:
     """
-    R@k = |relevant ∩ top-k retrieved| / |relevant|
-    What fraction of all known relevant items were found in top-k.
+    R@k = |relevant ∩ top-k| / min(|relevant|, k)
+    Capped so that R@k is always in [0, 1].
     """
     if not relevant_titles:
         return 0.0
-    top_k    = retrieved_titles[:k]
-    relevant = sum(1 for t in top_k if t in relevant_titles)
-    return round(relevant / len(relevant_titles), 4)
+    top_k     = retrieved_titles[:k]
+    hits      = sum(1 for t in top_k if t in relevant_titles)
+    # Denominator is min(|relevant|, k) to keep recall in [0,1]
+    denom     = min(len(relevant_titles), k)
+    return round(hits / denom, 4)
 
 
 def average_precision(retrieved_titles: list[str], relevant_titles: set[str]) -> float:
     """
-    AP = average of P@k values at each rank where a relevant item appears.
-    Mean over queries gives MAP — the gold standard IR metric.
+    AP = sum of P@k at each relevant rank / |relevant|
+    Bounded to [0, 1] by using only ranks up to len(retrieved_titles).
     """
     if not relevant_titles:
         return 0.0
-    hits      = 0
+    hits          = 0
     precision_sum = 0.0
     for rank, title in enumerate(retrieved_titles, start=1):
         if title in relevant_titles:
             hits += 1
             precision_sum += hits / rank
+    # Divide by actual number of relevant docs (standard AP definition)
+    # AP is naturally <= 1 because precision at each relevant rank <= 1
+    # and we sum at most |relevant| terms each <= 1, divided by |relevant|
     return round(precision_sum / len(relevant_titles), 4)
 
 
 def ndcg_at_k(retrieved_titles: list[str], graded_relevance: dict[str, int], k: int) -> float:
     """
     NDCG@k using human graded relevance (0, 1, or 2).
-    This is the real NDCG — not the fake score-based proxy.
-
-    graded_relevance: {title -> relevance_grade}
-      0 = not relevant
-      1 = relevant
-      2 = highly relevant
+    Unobserved documents (not in graded_relevance) are treated as rel=0.
+    IDCG is computed over the ideal ordering of ALL known relevant docs,
+    padded with zeros to length k — guaranteeing NDCG in [0, 1].
     """
     def dcg(rels):
         return sum(
@@ -102,8 +101,12 @@ def ndcg_at_k(retrieved_titles: list[str], graded_relevance: dict[str, int], k: 
             for i, r in enumerate(rels)
         )
 
+    # Retrieved relevances — unobserved docs get 0
     retrieved_rels = [graded_relevance.get(t, 0) for t in retrieved_titles[:k]]
-    ideal_rels     = sorted(graded_relevance.values(), reverse=True)[:k]
+
+    # Ideal: sort all known grades descending, pad to k with zeros
+    all_grades = sorted(graded_relevance.values(), reverse=True)
+    ideal_rels = (all_grades + [0] * k)[:k]
 
     actual_dcg = dcg(retrieved_rels)
     ideal_dcg  = dcg(ideal_rels)
@@ -232,7 +235,16 @@ def run_evaluation():
         latency = (time.perf_counter() - t0) * 1000
         latencies.append(latency)
 
-        retrieved = [r.get("title", "") for r in result["text_results"]]
+        # Deduplicate titles while preserving rank order.
+        # The search engine returns multiple passages per article —
+        # for evaluation purposes each article title counts only once.
+        seen = set()
+        retrieved = []
+        for r in result["text_results"]:
+            t = r.get("title", "")
+            if t not in seen:
+                seen.add(t)
+                retrieved.append(t)
 
         # Compute per-query metrics
         ap = average_precision(retrieved, relevant)

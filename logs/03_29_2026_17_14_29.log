@@ -1,0 +1,3 @@
+2026-03-29 17:14:35,402 - faiss.loader - DEBUG - Environment variable FAISS_OPT_LEVEL is not set, so let's pick the instruction set according to the current CPU
+2026-03-29 17:14:35,402 - faiss.loader - INFO - Loading faiss with AVX2 support.
+2026-03-29 17:14:35,422 - faiss.loader - INFO - Successfully loaded faiss with AVX2 support.

@@ -11,7 +11,7 @@ import time
 import hashlib
 
 # ---------------- CONFIG ----------------
-start_url      = "https://en.wikipedia.org/wiki/Balen_Shah"  # Change anytime
+start_url      = "https://en.wikipedia.org/wiki/Rastriya_Swatantra_Party"  # Change anytime
 allowed_domain = "en.wikipedia.org"
 
 output_dir = "wikipedia_scrape"

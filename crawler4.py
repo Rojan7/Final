@@ -14,8 +14,8 @@ from urllib.parse import urljoin, urlparse
 # --- CONFIG ---
 START_URL = "https://en.wikipedia.org/wiki/Nepal"
 OUT = Path("wikipedia_scrape")
-MAX_PAGES = 1000
-WORKERS = 150  # Increased workers for higher parallelism
+MAX_PAGES = 10000
+WORKERS = 1500  # Increased workers for higher parallelism
 
 (OUT / "images").mkdir(parents=True, exist_ok=True)
 (OUT / "meta").mkdir(parents=True, exist_ok=True)
